@@ -1,0 +1,431 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lucius7 解题日志 · 公开快照 API",
+    "version": "1.0.0",
+    "description": "GitHub Pages 上的只读 JSON 文件。当前 schemaVersion=1，支持 AtCoder 与 Codeforces。无认证、查询筛选、服务端分页或写入接口。按各平台 lastSuccess 判断新鲜度；HTTP 200 不代表上游同步成功。",
+    "contact": {
+      "name": "qwq repository",
+      "url": "https://github.com/theLucius7/qwq"
+    }
+  },
+  "externalDocs": {
+    "description": "字段、调用示例、上游获取与失败处理",
+    "url": "https://github.com/theLucius7/qwq/blob/main/docs/API.md"
+  },
+  "servers": [
+    {
+      "url": "https://thelucius7.github.io/qwq",
+      "description": "GitHub Pages 生产环境"
+    },
+    {
+      "url": "http://127.0.0.1:4173",
+      "description": "本地 npm run dev"
+    }
+  ],
+  "security": [],
+  "tags": [
+    {
+      "name": "Dashboard",
+      "description": "公开看板快照"
+    }
+  ],
+  "paths": {
+    "/data/dashboard.json": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "operationId": "getDashboard",
+        "summary": "读取 Lucius7 的完整看板快照",
+        "description": "一次返回完整 JSON；日期、平台与比赛筛选由客户端完成。响应由 GitHub Pages 提供，缓存策略由托管服务管理。源站错误放在 sources 中，且可能返回旧数据。",
+        "responses": {
+          "200": {
+            "description": "成功读取快照；应另行检查各平台 error、warnings 和 lastSuccess。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "静态资源未找到；响应由托管服务提供，不保证 JSON 错误结构。"
+          },
+          "default": {
+            "description": "其他 HTTP 错误由托管服务提供，本项目未定义统一错误体。"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Platform": {
+        "type": "string",
+        "enum": [
+          "atcoder",
+          "codeforces"
+        ],
+        "description": "当前已发布的平台；QOJ 与洛谷尚未接入。"
+      },
+      "ProblemId": {
+        "type": "string",
+        "description": "带平台前缀的题目唯一 ID。CF 特殊题库可使用 codeforces:problemset:{problemsetName}:{index}。",
+        "examples": [
+          "atcoder:abc001_1",
+          "codeforces:1:A"
+        ]
+      },
+      "ContestId": {
+        "type": "string",
+        "description": "带平台前缀的比赛唯一 ID，与题目 ID 属于独立集合。",
+        "examples": [
+          "atcoder:abc001",
+          "codeforces:1"
+        ]
+      },
+      "Profile": {
+        "type": "object",
+        "description": "用户 Rating 摘要；可选 Rating 获取失败时保留旧值及旧时间。",
+        "required": [
+          "handle",
+          "url",
+          "rating",
+          "maxRating",
+          "rank",
+          "lastSuccess"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "description": "平台用户名。",
+            "examples": [
+              "Lucius7"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "description": "平台用户主页。",
+            "format": "uri"
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "当前 Rating；未知或未定级时为 null。"
+          },
+          "maxRating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "最高 Rating；未知或未定级时为 null。"
+          },
+          "rank": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "AtCoder 当前为 Algorithm；Codeforces 为官方段位。"
+          },
+          "lastSuccess": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Rating 独立的最后成功获取时间；可能早于 Source.lastSuccess。",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Source": {
+        "type": "object",
+        "description": "单个平台的同步状态。HTTP 200 仍可返回旧快照。",
+        "required": [
+          "lastSuccess",
+          "profile",
+          "warnings",
+          "submissionCount",
+          "error"
+        ],
+        "properties": {
+          "lastSuccess": {
+            "type": "string",
+            "description": "该平台提交与目录快照最后成功更新时间，UTC。",
+            "format": "date-time"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "供人阅读的可选数据提示，不是固定错误码。"
+          },
+          "submissionCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "按提交 ID 去重的全部公开提交数量，含失败及重复提交。"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "本次核心同步失败文本；正常成功及离线重建时均为 null，应结合 lastSuccess 判断新鲜度。"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Problem": {
+        "type": "object",
+        "description": "收录的题目，包括用户未尝试的题目；不可用数组长度统计已解题数。",
+        "required": [
+          "id",
+          "platform",
+          "contestId",
+          "index",
+          "name",
+          "url",
+          "difficulty"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ProblemId"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/Platform"
+          },
+          "contestId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "题库主要比赛关联，格式与 ContestId 相同；特殊题库可为 null，也不保证非空值出现在 contests 中。"
+          },
+          "index": {
+            "type": "string",
+            "description": "主要题库目录中的题目标号。",
+            "examples": [
+              "A",
+              "D1"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "题目名称；缺失时可能回退为题号。"
+          },
+          "url": {
+            "type": "string",
+            "description": "题目详情链接，请直接使用此值。",
+            "format": "uri"
+          },
+          "difficulty": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "AtCoder Problems 换算后的估计难度或 CF 题目 rating；0 是有效值。"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Contest": {
+        "type": "object",
+        "description": "比赛与题目是多对多关系。完成进度统计所有历史 AC，不只赛内提交。",
+        "required": [
+          "id",
+          "platform",
+          "name",
+          "kind",
+          "startEpoch",
+          "url",
+          "problems",
+          "catalogComplete",
+          "hasSubmissions"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ContestId"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/Platform"
+          },
+          "name": {
+            "type": "string",
+            "description": "比赛名称。"
+          },
+          "kind": {
+            "type": "string",
+            "description": "展示类别，不使用封闭枚举。",
+            "examples": [
+              "ABC",
+              "ADT",
+              "Div. 2",
+              "Educational",
+              "Gym"
+            ]
+          },
+          "startEpoch": {
+            "type": "integer",
+            "description": "Unix 秒；0 表示开始时间未知。"
+          },
+          "url": {
+            "type": "string",
+            "description": "比赛详情链接。",
+            "format": "uri"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemId"
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "比赛题目 ID，引用 Dashboard.problems，按本场题号排列。"
+          },
+          "problemIndices": {
+            "type": "object",
+            "description": "可省略。题目 ID 到本场标号的映射；某题没有映射时回退到 Problem.index。",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "catalogComplete": {
+            "type": "boolean",
+            "description": "按当前来源获得完整目录。false 时分母应显示 ?，不能认定整场完成。"
+          },
+          "hasSubmissions": {
+            "type": "boolean",
+            "description": "实际在此比赛有提交，与共享题在其他比赛通过是不同概念。"
+          }
+        },
+        "additionalProperties": true
+      },
+      "AcceptedSubmission": {
+        "type": "object",
+        "description": "AtCoder result=AC 或 Codeforces verdict=OK 的提交，含重复通过。",
+        "required": [
+          "id",
+          "platform",
+          "problemId",
+          "epoch",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "源平台提交 ID，仅平台内唯一；跨平台键使用 (platform, id)。"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/Platform"
+          },
+          "problemId": {
+            "$ref": "#/components/schemas/ProblemId"
+          },
+          "epoch": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "当前判定通过的提交的提交时间，Unix 秒；不是评测完成时间或重判转 AC 的时刻。"
+          },
+          "url": {
+            "type": "string",
+            "description": "此提交的详情链接。",
+            "format": "uri"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Dashboard": {
+        "type": "object",
+        "description": "Lucius7 公开解题看板静态快照。允许未知附加字段；客户端应检查 schemaVersion。",
+        "required": [
+          "schemaVersion",
+          "handle",
+          "timezone",
+          "generatedAt",
+          "sources",
+          "problems",
+          "contests",
+          "accepted",
+          "attempted"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 1,
+            "description": "数据版本，与 OpenAPI 格式和文档版本不同。"
+          },
+          "handle": {
+            "type": "string",
+            "description": "此部署跟踪的用户。",
+            "const": "Lucius7"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "用于统计的固定时区，UTC+8。",
+            "const": "Asia/Taipei"
+          },
+          "generatedAt": {
+            "type": "string",
+            "description": "本次汇总生成时间，不能代替各 Source.lastSuccess。",
+            "format": "date-time"
+          },
+          "sources": {
+            "type": "object",
+            "description": "当前发布包含两个平台状态。",
+            "required": [
+              "atcoder",
+              "codeforces"
+            ],
+            "properties": {
+              "atcoder": {
+                "$ref": "#/components/schemas/Source"
+              },
+              "codeforces": {
+                "$ref": "#/components/schemas/Source"
+              }
+            },
+            "additionalProperties": true
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "description": "收录题库目录，包括未解题目；不承诺跨平台全局排序。"
+          },
+          "contests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Contest"
+            },
+            "description": "比赛目录，包括未参加的常规比赛与有提交的 Gym。"
+          },
+          "accepted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AcceptedSubmission"
+            },
+            "description": "各平台通过记录合并，含重复 AC，非全局时间顺序；按 problemId 取最早 epoch 得到首次 AC。"
+          },
+          "attempted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemId"
+            },
+            "uniqueItems": true,
+            "description": "已尝试题目的去重 ID，包含已 AC 题目。"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}
