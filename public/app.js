@@ -1,5 +1,5 @@
-import { TIMEZONE, PLATFORM_NAMES, PLATFORM_CODES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from './model.js?v=20260908-curve';
-import { mountTrend } from './trend.js?v=20260908-curve';
+import { TIMEZONE, PLATFORM_NAMES, PLATFORM_CODES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from './model.js?v=20260908-nowcoder';
+import { mountTrend } from './trend.js?v=20260908-nowcoder';
 
 const $ = selector => document.querySelector(selector);
 const number = new Intl.NumberFormat('en-US');
@@ -88,11 +88,11 @@ function renderProfiles() {
     const title = el('div');
     title.append(link(PLATFORM_NAMES[platform], source.profile.url, 'profile-name'));
     const solved = [...solvedIds].filter(id => problems.get(id).platform === platform).length;
-    title.append(el('div', 'profile-detail', !source.lastSuccess ? '等待连接提交记录' : platform === 'luogu' ? `${fmt(solved)} 题已通过 · AC 时间未知` : platform === 'qoj' ? `${fmt(solved)} 题已 AC · 有提交的比赛` : `${fmt(solved)} 题已 AC · ${source.profile.rank || (platform === 'atcoder' ? 'Algorithm' : '暂无段位')}`));
+    title.append(el('div', 'profile-detail', !source.lastSuccess ? '等待连接提交记录' : source.dataScope === 'practice_coding' ? `${fmt(solved)} 题已 AC · 公开编程练习` : platform === 'luogu' ? `${fmt(solved)} 题已通过 · AC 时间未知` : platform === 'qoj' ? `${fmt(solved)} 题已 AC · 有提交的比赛` : `${fmt(solved)} 题已 AC · ${source.profile.rank || (platform === 'atcoder' ? 'Algorithm' : '暂无段位')}`));
     const rating = el('div', 'profile-rating');
     if (platform === 'luogu') rating.append(el('strong', '', source.lastSuccess ? fmt(solved) : '—'), el('small', '', '公开通过题目'));
     else if (platform === 'qoj') rating.append(el('strong', '', source.submissionCount != null ? fmt(source.submissionCount) : '—'), el('small', '', '提交记录'));
-    else rating.append(el('strong', '', source.profile.rating ?? '—'), el('small', '', `Rating · 最高 ${source.profile.maxRating ?? '—'}`));
+    else rating.append(el('strong', '', source.profile.rating ?? '—'), el('small', '', source.profile.maxRating == null ? 'Rating' : `Rating · 最高 ${source.profile.maxRating}`));
     card.append(platformLogo(platform), title, rating, link('↗', source.profile.url, 'profile-link'));
     return card;
   }));
@@ -199,8 +199,9 @@ function renderUndated() {
 }
 
 function renderContests() {
-  $('#contests').hidden = hasOnlyUndatedRecords();
-  if (hasOnlyUndatedRecords()) return;
+  const practiceOnly = data.sources[state.platform]?.dataScope === 'practice_coding';
+  $('#contests').hidden = hasOnlyUndatedRecords() || practiceOnly;
+  if (hasOnlyUndatedRecords() || practiceOnly) return;
   $('#contest-scope-note').hidden = state.platform !== 'qoj';
   const query = state.search.toLocaleLowerCase().trim();
   const filtered = contests.filter(contest => {

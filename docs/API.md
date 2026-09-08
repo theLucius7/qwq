@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [OpenAPI 3.1 契约](openapi.json) · [在线快照](https://thelucius7.github.io/qwq/data/dashboard.json)
 
-本文描述 `schemaVersion: 2`，覆盖 AtCoder、Codeforces、QOJ 与洛谷。v2 新增无 AC 时间的已通过题目，并区分完整提交历史与无时间的通过题目快照；累计解题不能再仅使用 `accepted`。实现依据为 [同步器](../scripts/sync.py)、[前端统计模型](../public/model.js) 和 [部署工作流](../.github/workflows/pages.yml)。上游接口说明核对日期：2026-09-08。
+本文描述 `schemaVersion: 2`，覆盖 AtCoder、Codeforces、QOJ、洛谷与牛客。v2 新增无 AC 时间的已通过题目，并区分已获取的逐条提交历史与无时间的通过题目快照；累计解题不能再仅使用 `accepted`。实现依据为 [同步器](../scripts/sync.py)、[前端统计模型](../public/model.js) 和 [部署工作流](../.github/workflows/pages.yml)。上游接口说明核对日期：2026-09-08。
 
 ## 目录
 
@@ -27,7 +27,7 @@
 | 认证 | 无需登录、API Key、Token 或 Cookie |
 | 请求参数 / 请求体 | 无 |
 | 成功响应 | HTTP `200`，UTF-8 JSON，结构为 `Dashboard` |
-| 数据范围 | Lucius7 的四平台题目与来源状态；AtCoder / Codeforces / QOJ 的通过提交及目录；洛谷的无时间通过题目 |
+| 数据范围 | Lucius7 的五平台题目与来源状态；AtCoder / Codeforces / QOJ 的通过提交及目录；牛客公开编程练习提交；洛谷的无时间通过题目 |
 | 更新 | 每日同步、推送 `main` 或手动触发后，经构建与部署发布；可发布保留的降级数据 |
 | 分页 / 筛选 | 整份快照一次返回；平台、日期、比赛等筛选在客户端完成 |
 | 写入 | 不提供写入、实时查询或远程触发同步的业务接口 |
@@ -42,7 +42,7 @@ GitHub Pages 托管静态文件。添加 `?handle=...`、`?date=...` 等参数�
 | --- | --- |
 | 读取当前部署数据 | 请求上面的 Pages JSON 地址 |
 | 固定到某次仓库版本 | 从该 commit 读取 `public/data/dashboard.json`，如 `git show <commit>:public/data/dashboard.json` |
-| 本地联网更新 | `npm run sync` 更新 AtCoder / Codeforces / 已配置 QOJ，在每日预算内更新洛谷公开页；不直接发布 |
+| 本地联网更新 | `npm run sync` 更新 AtCoder / Codeforces / 已配置 QOJ，在每日预算内更新洛谷公开页和牛客公开编程练习；不直接发布 |
 | 本地离线重建 | 执行 `python3 scripts/sync.py --offline`；需要已有 `data/sources/*.json` |
 | 刷新线上数据 | 在 GitHub Actions 运行 **Daily sync and GitHub Pages**，等待部署完成 |
 
@@ -164,10 +164,10 @@ for platform, source in data["sources"].items():
 | `handle` | string | 当前为 `Lucius7` |
 | `timezone` | string | 当前为 `Asia/Taipei` |
 | `generatedAt` | string · date-time | 汇总 JSON 生成时间，不等于各数据源刷新时间 |
-| `sources` | object | 包含 `atcoder`、`codeforces`、`qoj`、`luogu`，值为 `Source`；尚未连接的来源也保留状态 |
+| `sources` | object | 包含 `atcoder`、`codeforces`、`qoj`、`luogu`、`nowcoder`，值为 `Source`；尚未连接的来源也保留状态 |
 | `problems` | `Problem[]` | 收录题库，包含大量未尝试题目；长度不是解题数 |
 | `contests` | `Contest[]` | 收录比赛，包含未参加的常规比赛；题目列表非空 |
-| `accepted` | `AcceptedSubmission[]` | 已获得真实时间的通过提交，含重复通过；当前来自 AtCoder / Codeforces / QOJ，不包含洛谷 |
+| `accepted` | `AcceptedSubmission[]` | 已获得真实时间的通过提交，含重复通过；当前来自 AtCoder / Codeforces / QOJ / 牛客公开编程练习，不包含洛谷 |
 | `undatedSolved` | `string[]` | 唯一的已通过题目 ID，但首次 AC 时间未知；引用题库，并与 `accepted` 的题目集合不相交 |
 | `attempted` | `string[]` | 去重后的已尝试题目 ID，包含已 AC 的题目 |
 
@@ -182,8 +182,9 @@ for platform, source in data["sources"].items():
 | `error` | string 或 null | 本次该平台核心同步错误；成功或离线重建时为 null；每日预算内跳过请求时保留该次请求的错误状态 |
 | `coverage` | string | `submission_history` 或 `solved_only`，说明是否具备逐条提交历史 |
 | `collectionMethod` | string | `http`、`authenticated_http` 或 `browser_import`，表示当前成功快照的获取方式 |
+| `dataScope` | string，可省略 | 牛客为 `practice_coding`，仅代表公开编程练习；不能推断比赛内提交完整性 |
 | `reportedCounts` | object，可省略 | 来源页面展示的摘要数字，见下文；当前用于洛谷 |
-| `status` | string，可省略 | 未连接来源的 `needs_auth`、`needs_import` 或 `error`；已有成功快照通常省略，错误仍查看 `error` |
+| `status` | string，可省略 | 未连接来源的 `needs_auth`、`needs_import`、`needs_sync` 或 `error`；已有成功快照通常省略，错误仍查看 `error` |
 | `message` | string，可省略 | 未连接状态的人类可读说明 |
 
 `error`、`warnings`、`message` 是供人阅读的文本，不是稳定错误码。空错误不证明数据刚刚刷新；始终结合 `lastSuccess` 和 `collectionMethod`。
@@ -200,7 +201,7 @@ for platform, source in data["sources"].items():
 | `url` | string · URI | 用户主页 |
 | `rating` | integer 或 null | 当前 Rating；未定级或获取不到时可为空；QOJ / 洛谷不采集，固定 null |
 | `maxRating` | integer 或 null | 最高 Rating |
-| `rank` | string 或 null | AtCoder 为 `Algorithm`，Codeforces 为官方段位；QOJ / 洛谷为 null |
+| `rank` | string 或 null | AtCoder 为 `Algorithm`，Codeforces 为官方段位；QOJ / 洛谷 / 牛客为 null |
 | `lastSuccess` | string · date-time 或 null | Rating 独立的最后成功获取时间；可能早于 Source 时间 |
 
 ### Problem
@@ -208,12 +209,12 @@ for platform, source in data["sources"].items():
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
 | `id` | string | 带平台前缀的题目唯一 ID |
-| `platform` | string | `atcoder`、`codeforces`、`qoj` 或 `luogu` |
+| `platform` | string | `atcoder`、`codeforces`、`qoj`、`luogu` 或 `nowcoder` |
 | `contestId` | string 或 null | 题库中的主要比赛关联；不是完整的比赛成员关系，也不保证出现在 `contests` 中 |
 | `index` | string | 主要目录中的题目标号，例如 `A`、`D1` |
 | `name` | string | 题目名称；元数据缺失时可能回退为题号 |
 | `url` | string · URI | 题目链接 |
-| `difficulty` | integer 或 null | AtCoder Problems 换算后估计难度或 CF rating；QOJ / 洛谷为 null |
+| `difficulty` | integer 或 null | AtCoder Problems 换算后估计难度或 CF rating；QOJ / 洛谷 / 牛客为 null |
 | `difficultyLabel` | string 或 null，可省略 | 洛谷页面上的难度分组文字；未获取时为 null，不转换成数值 rating |
 
 ID 格式：
@@ -224,6 +225,7 @@ ID 格式：
 | Codeforces 题目 | `codeforces:{contestId}:{index}`，例如 `codeforces:1:A` |
 | CF 无比赛 ID 的特殊题库 | `codeforces:problemset:{problemsetName}:{index}`，其 `contestId` 为 null |
 | QOJ 题目 | `qoj:{problemId}`，例如 `qoj:1` |
+| 牛客题目 | `nowcoder:{problemId}`，例如 `nowcoder:321116`，仅用公开 `/acm/problem/` 题号，不按名称合并 |
 | 洛谷题目 | `luogu:{problemId}`，例如 `luogu:P1001` |
 | QOJ 比赛 | `qoj:{contestId}`；与 QOJ 题目 ID 属于不同集合 |
 | AtCoder 比赛 | `atcoder:{contest_id}` |
@@ -236,7 +238,7 @@ ID 格式：
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
 | `id` | string | 带平台前缀的比赛唯一 ID |
-| `platform` | string | `atcoder`、`codeforces`、`qoj` 或 `luogu` |
+| `platform` | string | `atcoder`、`codeforces` 或 `qoj` |
 | `name` | string | 比赛名称 |
 | `kind` | string | 展示类别，例如 `ABC`、`ADT`、`Div. 2`、`Educational`、`Gym`；不固定为封闭枚举 |
 | `startEpoch` | integer | 比赛开始的 Unix 秒；`0` 表示未知，不应显示为 1970 年 |
@@ -247,19 +249,19 @@ ID 格式：
 | `catalogComplete` | boolean | 是否按当前数据来源获得完整目录；不代表隐藏 / 移除的题目也已知 |
 | `hasSubmissions` | boolean | 用户是否实际在此比赛有提交；无需 AC，也不要求是正式参赛 |
 
-某题在本场的显示标号使用 `contest.problemIndices?.[problem.id] ?? problem.index`。不能仅按 `Problem.contestId` 分组还原比赛，因为同一题目可能被多个比赛复用。QOJ 仅保留 `hasSubmissions: true` 的比赛，不因题目的“曾用于这些比赛”列表推断参加；`startEpoch` 当前为 0，前端排序可退回 `lastSubmissionEpoch`。洛谷当前不提供任何比赛对象。
+某题在本场的显示标号使用 `contest.problemIndices?.[problem.id] ?? problem.index`。不能仅按 `Problem.contestId` 分组还原比赛，因为同一题目可能被多个比赛复用。QOJ 仅保留 `hasSubmissions: true` 的比赛，不因题目的“曾用于这些比赛”列表推断参加；`startEpoch` 当前为 0，前端排序可退回 `lastSubmissionEpoch`。洛谷与牛客当前不提供比赛对象；牛客已接入范围是公开编程练习。
 
 ### AcceptedSubmission
 
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
 | `id` | integer | 源平台提交 ID，仅在同一平台内唯一 |
-| `platform` | string | 当前为 `atcoder`、`codeforces` 或 `qoj`；洛谷不产生提交事件 |
+| `platform` | string | 当前为 `atcoder`、`codeforces`、`qoj` 或 `nowcoder`；洛谷不产生提交事件 |
 | `problemId` | string | 引用 `problems[].id` |
 | `epoch` | integer，> 0 | 当前判定通过的提交的提交时间，Unix 秒 |
 | `url` | string · URI | 此次提交的详情链接 |
 
-跨平台去重使用 `(platform, id)`，例如 `${event.platform}:${event.id}`。`epoch` 取 AtCoder `epoch_second`、Codeforces `creationTimeSeconds` 或 QOJ 页面中的提交时间（按 UTC+8 解析），不记录评测完成时间、重判转 AC 的时刻或采集时刻。
+跨平台去重使用 `(platform, id)`，例如 `${event.platform}:${event.id}`。`epoch` 取 AtCoder `epoch_second`、Codeforces `creationTimeSeconds` 或 QOJ / 牛客页面中的提交时间（按 UTC+8 解析），不记录评测完成时间、重判转 AC 的时刻或采集时刻。
 
 `accepted` 由各平台数组合并，**不是全局时间排序**；需要按时间展示时自行排序。其他顶层数组也不应被依赖为跨平台全局排序。非 AC 提交不以逐条事件返回；它们用于已尝试状态、提交总数、比赛参与及缺失目录补全。API 不保存非 AC 提交的逐条时间、错误类型、语言或源码。
 
@@ -384,6 +386,28 @@ curl --fail --silent --show-error --max-time 45 \
 
 浏览器登录本身不会将 Cookie 自动传到 GitHub Actions。请求只向 `https://qoj.ac` 携带 Cookie；拒绝跨域重定向，遇到登录页、访问验证、401 / 403 或 429 会停止本次 QOJ 同步。已有快照时保留旧数据并告警，无旧快照时提供未连接状态。Cookie 有效也不保证站点允许来自 Actions 的请求；遇到验证需正常处理，不能绕过。
 
+### 牛客：公开编程练习提交
+
+账号为 `theLucius7`，UID `423062492`，来源为[公开编程练习页](https://ac.nowcoder.com/acm/contest/profile/423062492/practice-coding)。不需要 API Key 或 Cookie。只读取该页面及其实际“下一页”链接，不读取提交详情、源码或登录后的内容，也不扫描全站比赛目录。
+
+```sh
+curl --fail --silent --show-error --max-time 40 \
+  'https://ac.nowcoder.com/acm/contest/profile/423062492/practice-coding' \
+  --output nowcoder-practice.html
+```
+
+实际分页链接参数为 `pageSize=10`、`search=`、`statusTypeFilter=-1`、`languageCategoryFilter=-1`、`orderType=DESC`、`page=2` 起；同步器保留默认每页 10 条，不提高页面大小。2026-09-08 首次核对页面显示 135 道挑战题、113 道通过题、444 次提交，共 45 页，末页 4 条。发布前完整历史必须与这三个摘要计数同时一致。
+
+表格的运行 ID、题目链接、运行结果与提交时间分别映射为提交 ID、`nowcoder:{problemId}`、AC 判定与 `epoch`。仅运行结果明确为“答案正确”时计入 AC，不能仅凭得分 100 判定。时间精确到秒，页面没有时区后缀，本项目按 UTC+8 解释；使用提交时间而非采集时间。重复 AC 保留为独立事件，首次 AC 按题目取已获取记录中最早一次。
+
+Source 为 `coverage: "submission_history"`、`collectionMethod: "http"`、`dataScope: "practice_coding"`。**它表示公开编程练习范围内的逐条历史；尚未验证比赛内提交是否全部包含，不能宣称全账号、所有比赛的首次 AC 或完整次数。** 牛客不生成比赛对象，题目的 `contestId` / `difficulty` 为 null。资料卡读取练习页中的当前 Rating；最高 Rating 未获取，为 null。若页面当前 Rating 不可识别则为 null，不沿用旧 Rating。
+
+每天一个 UTC 自然日最多启动一次采集；内部 `data/sources/nowcoder-request.json` 持久化 `lastAttempt`、`error` 和 `paused`。一次采集的分页请求至少间隔 2.2 秒、最多 80 次，每次超时 40 秒、响应上限 2 MB，没有自动重试或重定向。首次全量收集；之后优先读取新记录，遇到缓存重叠且提交数、尝试题数、通过题数都匹配才停止。每七天完整重读以反映重判；旧页重判若不改变三个摘要数，可能到下一次全量核对才反映。全量超过 800 条会触及预算并暂停，维护者应检查来源和方案后处理，不能通过连续重跑扩大预算。
+
+内部分平台文件保留规范化的 `practiceSubmissions` 和 `lastFullSync` 以支持增量，不包含源码或凭据，也不输出到公开 `dashboard.json`。同步过程中新增提交导致分页计数变化或偏移时，停止当天并保留上一快照；访问拒绝、401 / 403 / 429、重定向、账号或页面结构异常则持久暂停。维护者核实并修复后，可清除 `paused` / `error`，保留 `lastAttempt`；独立 checkout、未提交状态或强制取消不共享可靠预算，限制与洛谷相同。
+
+这里使用的是公开 HTML，不是牛客承诺稳定的个人开放 API。[竞赛站 robots](https://ac.nowcoder.com/robots.txt) 当前允许 `/acm/`；没有在该文件中找到数值请求配额，上述限制是本项目的自定预算。[官方 API 文档](https://docs.nowcoder.com/) 面向企业笔试/面试业务，不能当个人竞赛历史接口；[官方 Tracker](https://www.nowcoder.com/problem/tracker) 的摘要和练习页面口径也不能直接混用。
+
 ### 洛谷：每天一次的公开练习页
 
 来源为 [Lucius7 公开练习页](https://www.luogu.com.cn/user/571082/practice)，用户 UID 为 `571082`。同步器无登录读取该页面一次，仅解析初始 HTML 中的 `script#lentille-context[type="application/json"]`。其中 `data.passed`、`data.submitted` 与 `data.user` 提供通过名单、未通过的尝试名单、UID / 用户名与摘要计数。**不调用个人历史 API、不翻页、不使用 Cookie，也不请求页面脚本或图片。**
@@ -444,7 +468,7 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 
 每次请求超时为 45 秒，最多尝试 3 次；前两次失败后分别等待 3 秒、6 秒，再按主机间隔继续。请求带可识别的项目 User-Agent。该限制是单进程内的设置，不协调多台机器或多个同步进程；维护者应避免重复启动采集器。
 
-现有 AtCoder / Codeforces 客户端未实现特殊的 `Retry-After` 解析或针对 403 / 429 的独立停止策略，不能把有限重试误写为这些能力。上游拒绝访问或限流时应检查官方规则和运行记录，避免手工连续重跑。QOJ 使用独立客户端：起始间隔 2.2 秒、超时 40 秒，普通网络错误最多 3 次尝试并等待 3 / 6 秒；登录或访问验证、401 / 403 / 429 立即停止，不重试。洛谷公开页客户端超时 40 秒，每个 UTC 自然日最多发起一次请求，无自动重试或重定向；手动文件导入仍不联网。这些保守设置不是源站公布的配额，也不保证账号或请求永远不会被限制。
+现有 AtCoder / Codeforces 客户端未实现特殊的 `Retry-After` 解析或针对 403 / 429 的独立停止策略，不能把有限重试误写为这些能力。上游拒绝访问或限流时应检查官方规则和运行记录，避免手工连续重跑。QOJ 使用独立客户端：起始间隔 2.2 秒、超时 40 秒，普通网络错误最多 3 次尝试并等待 3 / 6 秒；登录或访问验证、401 / 403 / 429 立即停止，不重试。洛谷公开页客户端超时 40 秒，每个 UTC 自然日最多发起一次请求，无自动重试或重定向；手动文件导入仍不联网。牛客每天一次采集、每次最多 80 个分页请求，间隔 2.2 秒，无重试，访问拒绝和结构异常暂停；详见牛客小节。这些保守设置不是源站公布的配额，也不保证账号或请求永远不会被限制。
 
 ## 错误与新鲜度
 
@@ -455,11 +479,13 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 | AtCoder / CF 首次失败且无缓存 | 同步中止，不覆盖汇总 JSON，不进入本次部署；此前已成功写入的其他平台快照可以保留 |
 | QOJ 首次无 Cookie 或离线且无缓存 | `lastSuccess: null`、`submissionCount: null`、`status: "needs_auth"`，不计入统计 |
 | QOJ 首次已尝试但失败且无缓存 | `status: "error"`、错误文本与 null 时间 / 数量；其他来源仍可部署，并报告降级 |
+| 牛客首次失败且无缓存，或离线无缓存 | 离线无缓存为 `needs_sync`；已尝试失败为 `error`，null 时间 / 数量，不计入统计 |
+| 牛客当日已采集或暂停 | 复用成功快照及其原时间；保留错误，零新增请求 |
 | 洛谷首次获取失败且无快照 | `status: "error"`、null 时间 / 提交数；离线且无快照时为 `needs_import`，不伪造 0 道题 |
 | QOJ Cookie 失效或必需页面失败，有缓存 | 保留整份 QOJ 历史与旧时间，设置 `error` 并报告降级 |
 | 洛谷当天已请求或自动请求已停止 | 复用成功快照，不更新其采集时间；失败原因保留在 `error`，不再发出请求 |
 | 原本非空的提交历史突然变为空 | 拒绝覆盖，按核心同步失败处理 |
-| Rating 失败 | 保留旧 Rating 及 Profile `lastSuccess`，增加 warning；首次无旧值时保持 null |
+| AtCoder / Codeforces Rating 失败 | 保留旧 Rating 及 Profile `lastSuccess`，增加 warning；首次无旧值时保持 null |
 | AtCoder 难度模型失败 | 本次难度为 null，增加 warning，不沿用旧难度 |
 | Gym 题表补全失败 | 保留已知题目，目录标为不完整，增加 warning |
 | `--offline` 重建 | 不联网；推进 `generatedAt`，保留 Source 时间、Rating 时间及 warnings，将本次 `error` 置为 null |
@@ -494,8 +520,9 @@ GitHub Actions 会先部署可用的降级快照，然后通过 `degraded=true` 
 4. 新增可选 `Problem.difficultyLabel` 与 `Contest.lastSubmissionEpoch`；QOJ 题目 ID 与比赛 ID 属于不同集合。
 5. `accepted.length` 现在明确表示“已记录且有时间的 AC 次数”，不能宣称四个平台完整 AC 总次数；洛谷采集时间不能转为 AC 事件。
 
-- 当前公开数据版本为 `schemaVersion: 2`；OpenAPI 格式为 `3.1.0`，文档自身版本为 `2.0.0`，三者含义不同。内部 `data/sources/*.json` 仍使用内部版本 `1`，不属于公开契约。
-- 客户端应检查支持的数据版本、允许未知的附加字段，并正确处理可空值、可选字段和未知展示类别；当前平台枚举为 `atcoder` / `codeforces` / `qoj` / `luogu`。
+- 2.1.0 文档与部署新增 `nowcoder` 平台、`Source.dataScope` 和 `needs_sync` 状态，原有字段语义不变，继续使用 `schemaVersion: 2`。旧 v2 快照可能只有四个来源；客户端需要识别牛客或忽略未知平台，不能假设固定平台数量。
+- 当前公开数据版本为 `schemaVersion: 2`；OpenAPI 格式为 `3.1.0`，文档自身版本为 `2.1.0`，三者含义不同。内部 `data/sources/*.json` 仍使用内部版本 `1`，不属于公开契约。
+- 客户端应检查支持的数据版本、允许未知的附加字段，并正确处理可空值、可选字段和未知展示类别；当前平台枚举为 `atcoder` / `codeforces` / `qoj` / `luogu` / `nowcoder`。
 - 维护者更改字段含义、必填性或平台契约时，应同步更新本文、OpenAPI 与相关测试，评估是否需要升级 `schemaVersion`；不要静默改变统计口径。
 - OpenAPI 只描述本项目的静态快照，不为上游网站的稳定性、权限或配额提供承诺。
 - 展示原始链接时使用返回的 `url`；消费名称、warnings、error 等上游相关文本时按文本渲染，避免作为 HTML 插入。

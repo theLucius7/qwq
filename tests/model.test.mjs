@@ -52,12 +52,13 @@ test('first AC deduplicates by platform-specific problem identity, not title or 
     { id: 2, problemId: 'atcoder:abc001_a', epoch: 1710000000 },
     { id: 2, problemId: 'codeforces:1:A', epoch: 1710000000 },
     { id: 1, problemId: 'atcoder:abc001_a', epoch: 1710000000 },
+    { id: 1, problemId: 'nowcoder:321116', epoch: 1710000000 },
   ];
   const first = firstAccepted(events);
-  assert.equal(first.size, 2);
+  assert.equal(first.size, 3);
   assert.equal(first.get('atcoder:abc001_a').id, 1);
-  assert.equal([...dailyCounts([...first.values()]).values()].reduce((a, b) => a + b), 2);
-  assert.equal([...dailyCounts(events).values()].reduce((a, b) => a + b), 4);
+  assert.equal([...dailyCounts([...first.values()]).values()].reduce((a, b) => a + b), 3);
+  assert.equal([...dailyCounts(events).values()].reduce((a, b) => a + b), 5);
 });
 
 test('streak permits today to be unfinished, excludes future days, and handles year boundaries', () => {

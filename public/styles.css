@@ -54,3 +54,5 @@ summary:focus-visible{outline:3px solid #6eab34;outline-offset:-4px}
 .trend-readout{color:#50613f;font-variant-numeric:tabular-nums}
 .trend-note{color:var(--muted)}
 @media(max-width:680px){.trend-panel{padding:20px 16px 16px}.trend-heading{align-items:flex-start;flex-direction:column;gap:16px}.trend-total{font-size:38px}.trend-summary{gap:12px 18px;font-size:13px}.trend-summary strong{font-size:16px}.trend-plot{margin-top:14px}.trend-footer{margin-top:10px}}
+
+.platform-logo.nowcoder,.platform-tag.nowcoder{color:#796118;background:#fff6ce}

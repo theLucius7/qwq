@@ -1,6 +1,6 @@
 export const TIMEZONE = 'Asia/Taipei';
-export const PLATFORM_NAMES = { atcoder: 'AtCoder', codeforces: 'Codeforces', qoj: 'QOJ', luogu: '洛谷' };
-export const PLATFORM_CODES = { atcoder: 'At', codeforces: 'Cf', qoj: 'Q', luogu: '洛' };
+export const PLATFORM_NAMES = { atcoder: 'AtCoder', codeforces: 'Codeforces', qoj: 'QOJ', luogu: '洛谷', nowcoder: '牛客' };
+export const PLATFORM_CODES = { atcoder: 'At', codeforces: 'Cf', qoj: 'Q', luogu: '洛', nowcoder: '牛' };
 
 export function solvedProblemIds(events, undatedSolved = []) {
   return new Set([...events.map(event => event.problemId), ...undatedSolved]);

@@ -39,7 +39,7 @@ jobs:
           node-version: '22'
       - name: Test data and date logic
         run: npm test
-      - name: Sync records and the daily public Luogu profile
+      - name: Sync records and daily public profiles
         id: sync
         env:
           QOJ_COOKIE: ${{ secrets.QOJ_COOKIE }}
