@@ -1,53 +1,53 @@
 # OJFlare
 
-**Lucius7 的多平台算法解题日志。** 汇总 AtCoder、Codeforces、QOJ 与牛客公开编程练习记录，在一个静态看板中查看累计解题趋势、每日 AC、Rating 和比赛进度。
+**Lucius7's cross-platform programming practice journal.** A static dashboard combines public AtCoder, Codeforces, QOJ, and Nowcoder practice records to show cumulative solving trends, daily accepted (AC) submissions, ratings, and contest progress.
 
-[![同步与部署](https://github.com/xw7qwq/ojflare/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/xw7qwq/ojflare/actions/workflows/pages.yml)
+[![Sync and deploy](https://github.com/xw7qwq/ojflare/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/xw7qwq/ojflare/actions/workflows/pages.yml)
 
-[在线访问](https://ojflare.lucius7.dev) · [API 文档](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [公开数据](https://ojflare.lucius7.dev/data/dashboard.json) · [反馈问题](https://github.com/xw7qwq/ojflare/issues)
+[Website](https://ojflare.lucius7.dev) · [API documentation](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [Public data](https://ojflare.lucius7.dev/data/dashboard.json) · [Report an issue](https://github.com/xw7qwq/ojflare/issues)
 
-OJFlare 使用独立域名 **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**。算法题解源码另见 [CodeFlare](https://github.com/xw7qwq/codeflare)（[codeflare.lucius7.dev](https://codeflare.lucius7.dev)）；两个仓库分别维护源码归档与解题统计。
+OJFlare uses the custom domain **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**. Algorithm source code lives in [CodeFlare](https://github.com/xw7qwq/codeflare) ([codeflare.lucius7.dev](https://codeflare.lucius7.dev)). The repositories maintain the source archive and solving statistics separately.
 
-## 目录
+## Contents
 
-- [功能](#功能)
-- [平台与数据范围](#平台与数据范围)
-- [快速开始](#快速开始)
-- [配置与数据更新](#配置与数据更新)
-- [公开 API](#公开-api)
-- [统计口径](#统计口径)
-- [部署](#部署)
-- [项目结构](#项目结构)
-- [开发与贡献](#开发与贡献)
-- [数据来源与致谢](#数据来源与致谢)
-- [许可证与数据归属](#许可证与数据归属)
+- [Features](#features)
+- [Platforms and data coverage](#platforms-and-data-coverage)
+- [Quick start](#quick-start)
+- [Configuration and data updates](#configuration-and-data-updates)
+- [Public API](#public-api)
+- [Statistics](#statistics)
+- [Deployment](#deployment)
+- [Project layout](#project-layout)
+- [Development and contributions](#development-and-contributions)
+- [Data sources and acknowledgments](#data-sources-and-acknowledgments)
+- [License and data ownership](#license-and-data-ownership)
 
-## 功能
+## Features
 
-- **解题趋势**：累计首次 AC 曲线，今日、本月及连续做题天数摘要；支持鼠标、触摸和方向键查看日期。
-- **每日记录**：按平台、年份查看热力图，选择日期查看题目、难度和提交时间；可切换首次 AC 与全部 AC。
-- **个人概况**：展示各平台已解题数、AtCoder / Codeforces 当前及最高 Rating，以及牛客当前 Rating。
-- **比赛进度**：仅展示有实际提交的比赛，按 A / B / C… 对齐题目；标记已 AC、尝试过和未完成，支持类别、完成状态及题目搜索。
-- **自动同步**：GitHub Actions 每日更新数据；上游失败时尽可能保留成功快照，并在页面提示数据状态。
-- **静态部署**：原生 HTML / CSS / JavaScript 前端、Python 标准库同步器；无数据库、无第三方运行依赖，公开 JSON 可独立使用。
+- **Solving trends**: cumulative first-AC charts and summaries for today, this month, and solving streaks. Explore dates with a mouse, touch, or arrow keys.
+- **Daily records**: heatmaps by platform and year, with problems, difficulty, and submission times for each date. Switch between first ACs and all ACs.
+- **Profile**: solved counts per platform, current and peak AtCoder / Codeforces ratings, and current Nowcoder rating.
+- **Contest progress**: only contests with actual submissions appear. Problems align by A / B / C, with accepted, attempted, and unfinished states, plus filters for category, completion, and problem search.
+- **Automatic synchronization**: GitHub Actions updates data daily. Successful snapshots are preserved where possible after upstream failures, and the page displays source status.
+- **Static deployment**: plain HTML / CSS / JavaScript frontend and a Python standard-library synchronizer, with no database or third-party runtime dependencies. Public JSON can be used independently.
 
-## 平台与数据范围
+## Platforms and data coverage
 
-| 平台 | 接入方式 | 当前范围 |
+| Platform | Access method | Current coverage |
 | --- | --- | --- |
-| AtCoder | AtCoder Problems 与官方公开数据 | 公开提交、题库、比赛映射、估计难度，以及官方 Algorithm Rating |
-| Codeforces | 官方 API 与公开 Gym 页面 | API 可见的提交、题库、比赛和 Rating；补充已提交的公开 Gym 题表 |
-| QOJ | 登录后的 HTML 页面 | 配置 `QOJ_COOKIE` 后同步提交历史，以及实际提交涉及的比赛 |
-| 牛客 | 无需登录的公开编程练习页面 | UID `423062492` / `theLucius7` 的练习提交与当前 Rating；不生成比赛进度 |
-| 洛谷 | 暂时停用 | 不请求、不导出、不计入统计；只保留内部历史适配器与快照 |
+| AtCoder | AtCoder Problems and official public data | Public submissions, problems, contest mappings, estimated difficulty, and official Algorithm rating |
+| Codeforces | Official API and public Gym pages | API-visible submissions, problems, contests, and ratings, supplemented with problem lists for public Gym contests with submissions |
+| QOJ | Authenticated HTML pages | Submission history and contests with actual submissions, when `QOJ_COOKIE` is configured |
+| Nowcoder | Public coding-practice pages without authentication | Practice submissions and current rating for UID `423062492` / `theLucius7`; no contest progress |
+| Luogu | Temporarily disabled | No requests, exports, or statistical contribution; only historical internal adapters and snapshots remain |
 
-当前看板固定展示 Lucius7 的账号，启用平台为 `atcoder`、`codeforces`、`qoj`、`nowcoder`。牛客数据明确标为 `practice_coding`，其比赛内提交是否包含在练习列表中尚未确认。私人、隐藏、不可访问或上游未收录的记录不在统计范围内。
+The dashboard currently displays Lucius7's accounts. Enabled platforms are `atcoder`, `codeforces`, `qoj`, and `nowcoder`. Nowcoder data is explicitly labeled `practice_coding`; whether its practice list includes in-contest submissions has not been confirmed. Private, hidden, inaccessible, or upstream-unlisted records are outside the scope.
 
-完整来源与获取方式见 [上游数据获取](docs/API.md#上游数据获取)。
+See [upstream data collection](docs/API.md#upstream-data-collection) for sources and access methods.
 
-## 快速开始
+## Quick start
 
-需要 **Git、Node.js 22+（含 npm）、Python 3.11+**。CI 使用 Node.js 22 与 Python 3.12；无需执行 `npm install` 或 `pip install`。
+Requires **Git, Node.js 22+ (including npm), and Python 3.11+**. CI uses Node.js 22 and Python 3.12. No `npm install` or `pip install` step is needed.
 
 ```sh
 git clone https://github.com/xw7qwq/ojflare.git
@@ -55,19 +55,19 @@ cd ojflare
 npm run dev
 ```
 
-打开 [http://127.0.0.1:4173](http://127.0.0.1:4173)，按 `Ctrl+C` 停止服务。仓库自带已生成的数据快照，本地预览不会触发上游记录同步。
+Open [http://127.0.0.1:4173](http://127.0.0.1:4173), and stop the server with `Ctrl+C`. The repository includes generated snapshots; local preview does not synchronize upstream records.
 
-| 命令 | 用途 |
+| Command | Purpose |
 | --- | --- |
-| `npm run dev` | 在 `127.0.0.1:4173` 预览 `public/` |
-| `npm run sync` | 联网同步启用的平台，并生成 `public/data/dashboard.json` |
-| `python3 scripts/sync.py --offline` | 只用已有平台快照重新汇总，不发起网络请求 |
-| `npm test` | 运行 JavaScript 与 Python 测试 |
-| `npm run build` | 校验公开数据，并把静态站点输出到 `dist/` |
+| `npm run dev` | Preview `public/` at `127.0.0.1:4173` |
+| `npm run sync` | Synchronize enabled platforms online and generate `public/data/dashboard.json` |
+| `python3 scripts/sync.py --offline` | Rebuild the aggregate using existing platform snapshots, without network requests |
+| `npm test` | Run JavaScript and Python tests |
+| `npm run build` | Validate public data and write the static site to `dist/` |
 
-`npm run build` 不自动获取新数据；`dist/` 是构建产物，不提交到 Git。
+`npm run build` does not fetch fresh data. `dist/` is generated output and is not committed to Git.
 
-`main` 中的快照是离线开发基线；最新自动同步结果保存在长期分支 `data/snapshots`。需要复现线上数据时，可执行以下命令恢复缓存和公开 JSON；它会替换本地快照，先保存未提交的手动导入数据。
+Snapshots on `main` are the offline development baseline. The latest automated results live on the permanent `data/snapshots` branch. To reproduce online data, restore caches and public JSON with the following commands. This replaces local snapshots, so save uncommitted manual imports first.
 
 ```sh
 git clone --single-branch --branch data/snapshots https://github.com/xw7qwq/ojflare.git .snapshots
@@ -75,44 +75,44 @@ rsync -a --delete .snapshots/data/sources/ data/sources/
 cp .snapshots/public/data/dashboard.json public/data/dashboard.json
 ```
 
-`.snapshots/` 被 Git 忽略。已有该目录时，在恢复前运行 `git -C .snapshots pull --ff-only`，无需重复克隆；恢复数据供本地验证，不需要提交到源码分支。
+Git ignores `.snapshots/`. If it already exists, run `git -C .snapshots pull --ff-only` before restoration instead of cloning again. Restored data is for local validation and does not need to be committed to the source branch.
 
-## 配置与数据更新
+## Configuration and data updates
 
-### 账号与认证
+### Accounts and authentication
 
-AtCoder、Codeforces 和牛客无需配置 API Key、Cookie 或个人 GitHub Token。QOJ 自动同步使用以下配置：
+AtCoder, Codeforces, and Nowcoder do not require API keys, cookies, or personal GitHub tokens. QOJ synchronization uses these settings:
 
-| 配置 | GitHub Actions 中的位置 | 说明 |
+| Setting | GitHub Actions location | Description |
 | --- | --- | --- |
-| `QOJ_COOKIE` | Repository secret | 正常登录 QOJ 后的有效 Cookie；启用 QOJ 自动同步时需要 |
-| `QOJ_HANDLE` | Repository variable | 可选，默认 `Lucius7` |
+| `QOJ_COOKIE` | Repository secret | A valid cookie from a normal QOJ login; required for automatic QOJ synchronization |
+| `QOJ_HANDLE` | Repository variable | Optional; defaults to `Lucius7` |
 
-在仓库 **Settings → Secrets and variables → Actions** 配置；本地运行时，同名环境变量也会生效。浏览器登录态不会自动传给 Actions。Cookie 失效后更新 Secret，再运行同步；不要将 Cookie 写入源码、数据文件或提交到仓库。
+Configure them under **Settings → Secrets and variables → Actions**. Environment variables with the same names are supported locally. Browser sessions are not automatically passed to Actions. When the cookie expires, update the secret and rerun synchronization. Do not put cookies in source code, data files, or commits.
 
-项目尚未提供通用的多用户配置。Fork 后更换账号，需要修改 [同步器](scripts/sync.py) 的 `HANDLE`、[牛客适配器](scripts/nowcoder.py) 的 `UID` / `HANDLE` 和 [页面](public/index.html) 中的个人链接，并替换旧用户快照后重新同步、测试和构建。QOJ 的 `QOJ_HANDLE` 必须与对应快照账号一致。
+The project does not yet provide general multi-user configuration. To change accounts in a fork, update `HANDLE` in the [synchronizer](scripts/sync.py), `UID` / `HANDLE` in the [Nowcoder adapter](scripts/nowcoder.py), and personal links in the [page](public/index.html). Replace the previous user's snapshots, then synchronize, test, and build. QOJ's `QOJ_HANDLE` must match the corresponding snapshot account.
 
-### 同步策略与故障处理
+### Synchronization and failure handling
 
-AtCoder / Codeforces 与已配置登录态的 QOJ 每次在线同步重新读取提交历史，以反映重判和延迟判题。牛客每天最多采集一次，通常增量更新，首次及每七天核对完整历史；每次最多 80 个分页请求，间隔至少 2.2 秒，不重试。同日再次运行会复用缓存；访问拒绝或页面结构异常时暂停采集。
+Each online synchronization rereads submission history from AtCoder, Codeforces, and QOJ when authentication is configured, so rejudging and delayed verdicts are reflected. Nowcoder is collected at most once per day, normally incrementally, with a full-history check on the first run and every seven days. Each run allows at most 80 paginated requests, at least 2.2 seconds apart, without retries. Repeated runs on the same day reuse the cache. Access denial or an unexpected page structure pauses collection.
 
-各平台校验成功后原子替换自己的快照，汇总结果写入 `public/data/dashboard.json`：
+Each platform atomically replaces its snapshot after validation. Aggregated results are written to `public/data/dashboard.json`:
 
-| 情况 | 处理方式 |
+| Situation | Behavior |
 | --- | --- |
-| 核心同步失败，已有成功快照 | 保留该平台旧数据，其他平台仍可更新，页面显示提示 |
-| AtCoder / Codeforces 首次失败且无快照 | 中止本次发布，避免把不完整记录发布为完整看板 |
-| QOJ / 牛客尚未连接且无快照 | 标记为等待连接或错误，不伪造零条提交 |
-| Rating、估计难度或 Gym 题表获取失败 | 单独记录 warning；可用数据仍可发布 |
-| 使用 `--offline` | 重新汇总已有记录，保留来源采集时间，不代表上游已刷新 |
+| Core synchronization fails with an existing successful snapshot | Preserve that platform's previous data, allow other platforms to update, and display a notice |
+| AtCoder / Codeforces fails on the first run without a snapshot | Stop publication to avoid presenting incomplete records as a complete dashboard |
+| QOJ / Nowcoder is not connected and has no snapshot | Mark the source as awaiting connection or failed; do not invent a zero-submission result |
+| Rating, estimated difficulty, or Gym problem-list fetch fails | Record a separate warning; available data can still be published |
+| `--offline` is used | Rebuild the aggregate from existing records and preserve source collection times; this does not mean upstream data was refreshed |
 
-页面以各平台 `lastSuccess` 判断新鲜度，超过 36 小时会提示；`generatedAt` 只表示汇总时间。若存在核心来源降级，工作流会先部署可用数据，再报告失败，提醒维护者检查。[错误与新鲜度](docs/API.md#错误与新鲜度) 记录了完整回退规则。
+The page uses each platform's `lastSuccess` to assess freshness and warns after 36 hours. `generatedAt` is only the aggregation time. If a core source is degraded, the workflow deploys available data before reporting failure so maintainers can investigate. See [errors and freshness](docs/API.md#errors-and-freshness) for the complete fallback rules.
 
-牛客请求预算与暂停状态保存在 `data/sources/nowcoder-request.json`。需排查采集范围、预算或暂停原因时，参阅 [牛客数据说明](docs/API.md#牛客公开编程练习提交)。已有浏览器数据的离线导入格式与命令见 [手动导入说明](docs/API.md#手动导入已保存的浏览器数据)。洛谷内部存档的导入或状态修改不会恢复其公开接入。
+Nowcoder request budgets and pause state are stored in `data/sources/nowcoder-request.json`. See [Nowcoder data](docs/API.md#nowcoder-public-coding-practice-submissions) when investigating collection coverage, budgets, or pause reasons. Formats and commands for importing saved browser data are in the [manual import guide](docs/API.md#manually-importing-saved-browser-data). Importing or changing historical Luogu state does not re-enable its public integration.
 
-## 公开 API
+## Public API
 
-生产接口为无需认证的静态 `GET`：
+The production endpoint is an unauthenticated static `GET`:
 
 ```sh
 curl --fail --silent --show-error --max-time 45 \
@@ -120,120 +120,120 @@ curl --fail --silent --show-error --max-time 45 \
   --output dashboard.json
 ```
 
-响应一次返回完整看板快照；平台和日期筛选在客户端完成，不提供写入、实时查询或通过 URL 参数切换账号的接口。当前数据版本为 **`schemaVersion: 2`**。
+Each response contains the complete dashboard snapshot. Platform and date filtering happen in the client. There are no write operations, live queries, or account-switching URL parameters. The current data version is **`schemaVersion: 2`**.
 
 ```js
 const response = await fetch('https://ojflare.lucius7.dev/data/dashboard.json');
 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 const data = await response.json();
-if (data.schemaVersion !== 2) throw new Error('不支持的数据版本');
+if (data.schemaVersion !== 2) throw new Error('Unsupported data version');
 
 const solved = new Set([
   ...data.accepted.map(event => event.problemId),
   ...data.undatedSolved,
 ]);
-console.log('已解题数', solved.size);
+console.log('Solved problems', solved.size);
 ```
 
-HTTP 200 不代表每个平台刚刚同步成功，使用方还应检查 `sources` 中的 `lastSuccess`、`error` 与 `warnings`。`undatedSolved` 保留兼容性，当前为空数组。完整字段、JavaScript / Python 示例与版本规则见 [API 文档](docs/API.md)；[OpenAPI 契约](docs/openapi.json) 描述本项目的公开接口。
+HTTP 200 does not mean every platform has just synchronized successfully. Consumers should also check `lastSuccess`, `error`, and `warnings` in `sources`. `undatedSolved` remains for compatibility and is currently an empty array. The [API documentation](docs/API.md) covers all fields, JavaScript / Python examples, and versioning. The [OpenAPI contract](docs/openapi.json) describes the public interface.
 
-## 统计口径
+## Statistics
 
-| 指标 | 计算规则 |
+| Metric | Calculation |
 | --- | --- |
-| 累计已解题 | `accepted` 中的题目 ID 与 `undatedSolved` 取并集；跨平台题号分别计数 |
-| 每日新增 / 解题曲线 | 对有真实提交时间的通过记录，按题目 ID 取已获取历史中的最早一次 AC |
-| 全部 AC | 已获取且有时间的通过提交次数，包含重复通过；不等于所有平台完整 AC 总次数 |
-| 日期 | 使用通过提交的提交时间，按 `Asia/Taipei`（UTC+8）自然日归档 |
-| 连续做题 | 只使用有时间的 AC；今天尚未 AC 时允许延续到昨天 |
-| 比赛进度 | 按比赛题表计算全历史通过情况，正式赛、练习和虚拟赛均可贡献进度 |
-| 比赛范围 | 仅包含 `hasSubmissions === true` 的比赛；共享题在别场通过不等于本场有提交 |
-| 目录或难度缺失 | 不完整题表的分母显示 `?`，不判定整场完成；未知难度为 `null` |
+| Total solved | Union of problem IDs in `accepted` and `undatedSolved`; IDs from different platforms count separately |
+| Daily new solves / solving curve | Earliest AC in the retrieved history for each problem ID, using records with actual submission times |
+| All ACs | Retrieved accepted submissions with timestamps, including repeat acceptances; not necessarily the complete all-time total across all platforms |
+| Dates | Accepted submission times grouped by calendar day in `Asia/Taipei` (UTC+8) |
+| Solving streak | Timestamped ACs only; a streak may end yesterday when there has been no AC today |
+| Contest progress | All-history acceptance against the contest problem list; official, practice, and virtual submissions can contribute |
+| Contest coverage | Only contests with `hasSubmissions === true`; solving a shared problem in another contest does not establish a submission in this one |
+| Missing catalogs or difficulty | Incomplete problem lists display `?` as the denominator and are not considered fully complete; unknown difficulty is `null` |
 
-AtCoder 共享题使用同一题目 ID；Codeforces 使用 `contestId + index`，不按标题合并跨 Div 题目，进度可能与 CFTracker 不同。通过判定与题目关联的细节见 [统计与关联规则](docs/API.md#统计与关联规则)。
+Shared AtCoder problems use the same problem ID. Codeforces uses `contestId + index`, without merging cross-division problems by title, so progress may differ from CFTracker. See [statistics and associations](docs/API.md#statistics-and-associations) for acceptance and problem-mapping details.
 
-## 部署
+## Deployment
 
-正式站点为 **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**，通过 GitHub Pages 发布。[同步与部署工作流](.github/workflows/pages.yml) 在以下情况运行：
+The production site is **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**, published through GitHub Pages. The [sync and deployment workflow](.github/workflows/pages.yml) runs:
 
-- 每天 **08:17（Asia/Taipei / UTC+8）**，cron 为 `17 0 * * *`，实际启动可能因排队延迟。
-- 推送到 `main`。
-- 在 Actions 页面手动运行 **Daily sync and GitHub Pages**。
+- Daily at **08:17 (Asia/Taipei / UTC+8)**, with cron `17 0 * * *`; queueing may delay the actual start.
+- On pushes to `main`.
+- When **Daily sync and GitHub Pages** is dispatched manually from Actions.
 
 ```mermaid
 flowchart LR
-    A[上游平台] --> S[同步与校验]
-    S --> C[各平台成功快照]
+    A[Upstream platforms] --> S[Sync and validate]
+    S --> C[Successful platform snapshots]
     C --> J[dashboard.json]
-    J --> B[静态构建 dist/]
+    J --> B[Static build dist/]
     B --> P[GitHub Pages]
-    P --> U[看板与 API 使用方]
+    P --> U[Dashboard and API consumers]
 ```
 
-工作流分别检出 `main` 源码和 `data/snapshots` 数据，恢复最新快照与请求预算后执行测试、同步、写回数据分支、构建和发布。数据分支仅包含 `data/sources/` 与 `public/data/dashboard.json`，保留成功数据及上游失败时的回退状态。源码检出不保存 Git 凭证，自动化不再直接写入 `main`；数据提交不会触发仅监听 `main` 的 push 工作流，因此不使用 `[skip ci]`。
+The workflow checks out `main` source and `data/snapshots` data separately. It restores current snapshots and request budgets, then tests, synchronizes, writes to the data branch, builds, and publishes. The data branch contains only `data/sources/` and `public/data/dashboard.json`, retaining successful data and fallback state after upstream failures. The source checkout does not persist Git credentials, and automation does not write directly to `main`. Data commits do not trigger workflows whose push filters match only `main`, so no CI-skip marker is needed.
 
-### 自行部署
+### Deploying your own instance
 
-1. Fork 或建立包含本项目的仓库，源码分支使用 `main`，并保留包含最新快照的 `data/snapshots` 分支。Fork 时不要选择仅复制默认分支；缺少数据分支时，从本仓库推送该分支到自己的远端后再启动部署。
-2. 在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。
-3. 启用 Actions，并允许工作流声明的权限：构建任务只向 `data/snapshots` 写回数据，部署任务写入 Pages 并获取 OIDC 身份令牌。`main` 可以强制 PR 和必需检查，数据分支允许 `GITHUB_TOKEN` 正常推送且禁止强推和删除，无需绕过主分支规则。
-4. 按需配置 QOJ Secret / Variable，手动运行部署工作流，从 `github-pages` 环境查看部署地址。
-5. 使用自己的域名时，在 **Settings → Pages → Custom domain** 配置并完成 DNS 与 HTTPS 设置；同步修改 `public/CNAME`、页面 canonical、README 与 API 文档中的公开地址。
+1. Fork or create a repository containing this project. Use `main` for source and retain the `data/snapshots` branch with current snapshots. Do not select the option to copy only the default branch when forking. If the data branch is missing, push it from this repository to your remote before enabling deployment.
+2. Select **GitHub Actions** under **Settings → Pages → Build and deployment → Source**.
+3. Enable Actions and allow the declared workflow permissions: the build job writes data only to `data/snapshots`; the deployment job writes to Pages and obtains an OIDC identity token. `main` can require PRs and checks. The data branch allows normal `GITHUB_TOKEN` pushes while prohibiting force pushes and deletion, with no need to bypass main-branch rules.
+4. Configure QOJ secrets / variables as needed, dispatch deployment, and find the URL in the `github-pages` environment.
+5. For a custom domain, configure **Settings → Pages → Custom domain**, DNS, and HTTPS. Update `public/CNAME`, the page canonical URL, README, and public URLs in the API documentation together.
 
-工作流使用 GitHub 自动提供的 `GITHUB_TOKEN`，不需要额外的个人 Token。Fork 后需检查定时工作流是否启用；长期无活动的公开仓库可能被停用定时任务。参考 [Pages 自定义工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)、[自定义域名](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site) 与 [schedule 说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+The workflow uses GitHub's automatic `GITHUB_TOKEN`; no additional personal token is required. Check that scheduled workflows are enabled after forking. Schedules may be disabled in public repositories after extended inactivity. See [custom Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [custom domains](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site), and [schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
-也可以将 `npm run build` 生成的 `dist/` 整体交给其他静态托管服务；数据同步仍需单独运行。
+You can also publish the complete `dist/` output from `npm run build` to another static host. Data synchronization must still run separately.
 
-## 项目结构
+## Project layout
 
 ```text
 .github/workflows/
-  pages.yml              # main 源码 + data/snapshots 定时同步与 Pages 部署
-  check.yml              # Pull request 测试与构建
-data/sources/            # 平台成功快照及请求状态；内部缓存
+  pages.yml              # main source + scheduled data/snapshots sync and Pages deployment
+  check.yml              # Pull request tests and build
+data/sources/            # Successful platform snapshots and request state; internal cache
 docs/
-  API.md                 # 公开接口、上游来源与故障处理
-  openapi.json           # OpenAPI 3.1 契约
+  API.md                 # Public interface, upstream sources, and failure handling
+  openapi.json           # OpenAPI 3.1 contract
 public/
-  CNAME                  # 自定义域名，构建时复制到 dist/
-  index.html             # 页面布局、个人资料与来源链接
-  app.js                 # 交互与渲染
-  model.js               # 日期、首次 AC、连续天数与比赛进度
-  trend.js               # 累计解题曲线
-  styles.css             # 页面样式
-  data/dashboard.json    # 浏览器与 API 使用方读取的快照
+  CNAME                  # Custom domain, copied to dist/ during build
+  index.html             # Page layout, profile, and source links
+  app.js                 # Interaction and rendering
+  model.js               # Dates, first ACs, streaks, and contest progress
+  trend.js               # Cumulative solving chart
+  styles.css             # Page styles
+  data/dashboard.json    # Snapshot consumed by the browser and API clients
 scripts/
-  sync.py                # 同步入口、规范化、校验与汇总
-  qoj.py                 # QOJ 提交与比赛 HTML 解析
-  nowcoder.py            # 牛客公开编程练习增量与全量采集
-  import_browser.py      # 已保存浏览器数据的离线导入入口
-  qoj_import.py          # QOJ 离线数据规范化
-  luogu.py               # 洛谷历史适配器，当前未启用
-  build.mjs              # 数据校验与静态构建
-tests/                   # JavaScript 与 Python 测试
+  sync.py                # Sync entry point, normalization, validation, and aggregation
+  qoj.py                 # QOJ submission and contest HTML parsing
+  nowcoder.py            # Incremental and full Nowcoder public practice collection
+  import_browser.py      # Offline import entry point for saved browser data
+  qoj_import.py          # QOJ offline data normalization
+  luogu.py               # Historical Luogu adapter, currently disabled
+  build.mjs              # Data validation and static build
+tests/                   # JavaScript and Python tests
 ```
 
-## 开发与贡献
+## Development and contributions
 
-欢迎通过 [Issue](https://github.com/xw7qwq/ojflare/issues) 报告问题，或提交 [Pull request](https://github.com/xw7qwq/ojflare/pulls) 改进展示、文档和数据处理。
+Use [issues](https://github.com/xw7qwq/ojflare/issues) to report problems or [pull requests](https://github.com/xw7qwq/ojflare/pulls) to improve presentation, documentation, and data handling. Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch and review requirements.
 
-- 报告数据问题时，附上平台、题目或比赛链接、预期行为及复现步骤；不要附带登录凭据或提交源码。
-- 修改统计模型或同步器时，补充对应边界条件测试，并执行 `npm test` 与 `npm run build`。Pull request 工作流也会运行这两个检查。
-- 修改公开字段时，同时更新 [API 文档](docs/API.md)、[OpenAPI 契约](docs/openapi.json) 与相关测试，评估是否需要升级 `schemaVersion`。
-- `data/sources/` 是同步缓存，不是稳定的公开 API。开发时可先使用已有快照，避免重复触发在线采集。
+- For data issues, include the platform, problem or contest link, expected behavior, and reproduction steps. Do not include credentials or submission source code.
+- When changing the statistics model or synchronizer, add relevant boundary tests and run `npm test` and `npm run build`. The PR workflow runs both checks.
+- When changing public fields, update the [API documentation](docs/API.md), [OpenAPI contract](docs/openapi.json), and related tests, and assess whether `schemaVersion` needs an update.
+- `data/sources/` is a synchronization cache, not a stable public API. Use existing snapshots for development to avoid repeated online collection.
 
-## 数据来源与致谢
+## Data sources and acknowledgments
 
-- [AtCoder Problems API](https://github.com/kenkoooo/AtCoderProblems/blob/master/doc/api.md)：社区维护的公开提交、题库、比赛映射与难度数据；[Lucius7 题表](https://kenkoooo.com/atcoder/#/table/Lucius7)。
-- [AtCoder 官方个人主页](https://atcoder.jp/users/Lucius7)与 [Rating 历史](https://atcoder.jp/users/Lucius7/history/json)。
-- [Codeforces 官方 API](https://codeforces.com/apiHelp)、[个人主页](https://codeforces.com/profile/Lucius7)与公开 Gym 比赛页。
-- [CFTracker](https://cftracker.netlify.app/contests)：比赛进度展示参考；本项目直接获取 Codeforces 数据。
-- [QOJ 个人主页](https://qoj.ac/user/profile/Lucius7)：登录后的提交与比赛页面。
-- [牛客公开编程练习](https://ac.nowcoder.com/acm/contest/profile/423062492/practice-coding)：提交结果、题号、名称与提交时间。
-- [洛谷公开练习页](https://www.luogu.com.cn/user/571082/practice)：历史快照来源，缺少 AC 时间；当前已停用。
+- [AtCoder Problems API](https://github.com/kenkoooo/AtCoderProblems/blob/master/doc/api.md): community-maintained public submissions, problems, contest mappings, and difficulty data; [Lucius7's problem table](https://kenkoooo.com/atcoder/#/table/Lucius7).
+- [Official AtCoder profile](https://atcoder.jp/users/Lucius7) and [rating history](https://atcoder.jp/users/Lucius7/history/json).
+- [Official Codeforces API](https://codeforces.com/apiHelp), [profile](https://codeforces.com/profile/Lucius7), and public Gym contest pages.
+- [CFTracker](https://cftracker.netlify.app/contests): a reference for contest-progress presentation. This project fetches Codeforces data directly.
+- [QOJ profile](https://qoj.ac/user/profile/Lucius7): authenticated submission and contest pages.
+- [Nowcoder public coding practice](https://ac.nowcoder.com/acm/contest/profile/423062492/practice-coding): submission verdicts, problem IDs, names, and timestamps.
+- [Luogu public practice page](https://www.luogu.com.cn/user/571082/practice): historical snapshot source without AC times; currently disabled.
 
-页面头像通过腾讯 `q1.qlogo.cn` 加载 [QQ 3012967200 的头像](https://q1.qlogo.cn/g?b=qq&nk=3012967200&s=100)。公开数据仅保存展示所需的题目和提交元数据，不保存提交源码或登录凭据。
+The page loads the [avatar for QQ 3012967200](https://q1.qlogo.cn/g?b=qq&nk=3012967200&s=100) through Tencent's `q1.qlogo.cn`. Public data stores only the problem and submission metadata needed for display, without submission source code or credentials.
 
-## 许可证与数据归属
+## License and data ownership
 
-仓库当前未附带 `LICENSE` 文件。上游题目、平台数据与头像的权利归各自权利人所有。
+This repository does not currently include a `LICENSE` file. Upstream problems, platform data, and avatars remain subject to their respective owners' rights.
