@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dateKey, shiftDay, firstAccepted, dailyCounts, streaks, calendarDays, completion, matchesStatus } from '../public/model.js';
+import { PLATFORM_NAMES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, streaks, calendarDays, completion, matchesStatus } from '../public/model.js';
+
+test('solved problems without timestamps add to cumulative totals without inventing daily events', () => {
+  const events = [{ id: 1, platform: 'qoj', problemId: 'qoj:42', epoch: Date.parse('2026-09-08T01:00:00Z') / 1000 }];
+  const ids = solvedProblemIds(events, ['luogu:P1000', 'luogu:CF1A', 'luogu:P1000']);
+  assert.equal(PLATFORM_NAMES.luogu, '洛谷');
+  assert.equal(ids.size, 3);
+  assert.equal(firstAccepted(events).size, 1);
+  assert.deepEqual([...dailyCounts(events)], [['2026-09-08', 1]]);
+  assert.deepEqual(streaks(dailyCounts(events).keys(), '2026-09-08'), { current: 1, longest: 1 });
+  assert.equal(solvedProblemIds(events, ['qoj:42']).size, 1);
+});
 
 test('AC dates use UTC+8 at midnight, independent of machine timezone', () => {
   assert.equal(dateKey(Date.parse('2026-09-07T15:59:59Z') / 1000), '2026-09-07');
@@ -62,4 +73,18 @@ test('shared AtCoder tasks show AC without inventing a contest submission', () =
   assert.equal(matchesStatus(reused, 'started'), false);
   const original = completion({ problems: ['atcoder:abc001_a'], catalogComplete: true, hasSubmissions: true }, first, attempted);
   assert.equal(matchesStatus(original, 'started'), true);
+});
+
+test('QOJ excludes unsubmitted contests even when All contests is selected', () => {
+  assert.equal(PLATFORM_NAMES.qoj, 'QOJ');
+  const contests = [
+    { id: 'qoj:1', platform: 'qoj', hasSubmissions: true },
+    { id: 'qoj:2', platform: 'qoj', hasSubmissions: false },
+    { id: 'qoj:3', platform: 'qoj' },
+    { id: 'atcoder:abc001', platform: 'atcoder', hasSubmissions: false },
+  ];
+  assert.deepEqual(contests.filter(includedContest).map(contest => contest.id), ['qoj:1', 'atcoder:abc001']);
+  const first = firstAccepted([{ problemId: 'qoj:1', id: 1, epoch: 100 }, { problemId: 'qoj:1', id: 2, epoch: 200 }, { problemId: 'codeforces:1:A', id: 1, epoch: 100 }]);
+  assert.equal(first.size, 2);
+  assert.equal(first.get('qoj:1').epoch, 100);
 });

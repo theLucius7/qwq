@@ -1,13 +1,13 @@
-import { TIMEZONE, PLATFORM_NAMES, dateKey, shiftDay, firstAccepted, dailyCounts, streaks, calendarDays, completion, matchesStatus } from './model.js';
+import { TIMEZONE, PLATFORM_NAMES, PLATFORM_CODES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, streaks, calendarDays, completion, matchesStatus } from './model.js';
 
 const $ = selector => document.querySelector(selector);
 const number = new Intl.NumberFormat('en-US');
 const time = new Intl.DateTimeFormat('zh-CN', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false });
 const stamp = new Intl.DateTimeFormat('zh-CN', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 let today = dateKey(Date.now() / 1000);
-const state = { platform: 'all', year: Number(today.slice(0, 4)), date: today, mode: 'first', search: '', kind: 'all', status: 'started', page: 1 };
+const state = { platform: 'all', year: Number(today.slice(0, 4)), date: today, mode: 'first', search: '', kind: 'all', status: 'started', page: 1, undatedSearch: '', undatedPage: 1 };
 const PAGE_SIZE = 15;
-let data, problems, contests, events, first, attempted, visibleEvents, visibleFirst, counts;
+let data, problems, contests, events, first, attempted, visibleEvents, visibleFirst, counts, solvedIds, undatedIds;
 
 function el(tag, className, text) {
   const element = document.createElement(tag);
@@ -24,8 +24,9 @@ function link(text, url, className = '') {
   anchor.rel = 'noopener noreferrer';
   return anchor;
 }
-function platformLogo(platform) { return el('span', `platform-logo ${platform}`, platform === 'atcoder' ? 'At' : 'Cf'); }
+function platformLogo(platform) { return el('span', `platform-logo ${platform}`, PLATFORM_CODES[platform]); }
 function inPlatform(item) { return state.platform === 'all' || item.platform === state.platform; }
+function hasOnlyUndatedRecords() { return state.platform !== 'all' && data.sources[state.platform]?.coverage === 'solved_only'; }
 function fmt(value) { return number.format(value); }
 function empty(title, description) {
   const container = el('div', 'empty-state');
@@ -35,24 +36,27 @@ function empty(title, description) {
 
 function renderStats() {
   const solved = [...visibleFirst.values()];
+  const allSolved = [...solvedIds].map(id => problems.get(id)).filter(inPlatform);
+  const noDates = hasOnlyUndatedRecords();
   const month = today.slice(0, 7);
   const monthCount = solved.filter(event => dateKey(event.epoch).startsWith(month)).length;
   const activeStreaks = streaks(dailyCounts(visibleEvents).keys(), today);
   const currentCount = counts.get(today) || 0;
   const todayACs = visibleEvents.filter(event => dateKey(event.epoch) === today).length;
-  const at = solved.filter(event => event.platform === 'atcoder').length;
-  const cf = solved.filter(event => event.platform === 'codeforces').length;
+  const available = Object.keys(data.sources).filter(platform => data.sources[platform].lastSuccess);
+  const platformCounts = available.map(platform => `${PLATFORM_NAMES[platform]} ${fmt(allSolved.filter(problem => problem.platform === platform).length)}`).join(' / ');
+  const unavailable = state.platform !== 'all' && !data.sources[state.platform]?.lastSuccess;
   const specs = [
-    { title: '累计解题', value: solved.length, unit: '题', foot: state.platform === 'all' ? `AtCoder ${fmt(at)}  /  Codeforces ${fmt(cf)}` : `${PLATFORM_NAMES[state.platform]} · 每题首次 AC`, icon: '↗', primary: true },
-    { title: '本月新增', value: monthCount, unit: '题', foot: `${today.slice(0, 4)} 年 ${Number(today.slice(5, 7))} 月 · 首次 AC`, icon: '▦' },
-    { title: '今日解题', value: currentCount, unit: '题', foot: `今天共 ${fmt(todayACs)} 次 AC（含重复）`, icon: '✓' },
-    { title: '连续做题', value: activeStreaks.current, unit: '天', foot: `最长连续 ${activeStreaks.longest} 天 · 有 AC 即计入`, icon: 'ϟ' },
+    { title: '累计解题', value: allSolved.length, unit: '题', foot: state.platform === 'all' ? platformCounts : `${PLATFORM_NAMES[state.platform]} · 已通过题目去重`, icon: '↗', primary: true },
+    { title: '本月新增', value: noDates ? null : monthCount, unit: '题', foot: noDates ? '来源未提供 AC 时间' : `${today.slice(0, 4)} 年 ${Number(today.slice(5, 7))} 月 · 已知时间的首次 AC`, icon: '▦' },
+    { title: '今日解题', value: noDates ? null : currentCount, unit: '题', foot: noDates ? '来源未提供 AC 时间' : `今天已记录 ${fmt(todayACs)} 次 AC（含重复）`, icon: '✓' },
+    { title: '连续做题', value: noDates ? null : activeStreaks.current, unit: '天', foot: noDates ? '来源未提供 AC 时间' : `最长连续 ${activeStreaks.longest} 天 · 按已知 AC 时间`, icon: 'ϟ' },
   ];
   $('#stats').replaceChildren(...specs.map(spec => {
     const card = el('article', `stat-card${spec.primary ? ' primary' : ''}`);
     const top = el('div', 'stat-top'); top.append(el('span', '', spec.title), el('span', 'stat-icon', spec.icon));
-    const value = el('div', 'stat-value', fmt(spec.value)); value.append(el('small', '', spec.unit));
-    card.append(top, value, el('div', 'stat-foot', spec.foot)); return card;
+    const value = el('div', 'stat-value', unavailable || spec.value === null ? '—' : fmt(spec.value)); value.append(el('small', '', spec.unit));
+    card.append(top, value, el('div', 'stat-foot', unavailable ? '等待首次同步' : spec.foot)); return card;
   }));
 }
 
@@ -61,16 +65,20 @@ function renderProfiles() {
     const card = el('article', 'profile-card');
     const title = el('div');
     title.append(link(PLATFORM_NAMES[platform], source.profile.url, 'profile-name'));
-    const solved = [...first.values()].filter(event => event.platform === platform).length;
-    title.append(el('div', 'profile-detail', `${fmt(solved)} 题已 AC · ${source.profile.rank || (platform === 'atcoder' ? 'Algorithm' : '暂无段位')}`));
+    const solved = [...solvedIds].filter(id => problems.get(id).platform === platform).length;
+    title.append(el('div', 'profile-detail', !source.lastSuccess ? '等待连接提交记录' : platform === 'luogu' ? `${fmt(solved)} 题已通过 · AC 时间未知` : platform === 'qoj' ? `${fmt(solved)} 题已 AC · 有提交的比赛` : `${fmt(solved)} 题已 AC · ${source.profile.rank || (platform === 'atcoder' ? 'Algorithm' : '暂无段位')}`));
     const rating = el('div', 'profile-rating');
-    rating.append(el('strong', '', source.profile.rating ?? '—'), el('small', '', `Rating · 最高 ${source.profile.maxRating ?? '—'}`));
+    if (platform === 'luogu') rating.append(el('strong', '', source.lastSuccess ? fmt(solved) : '—'), el('small', '', '公开通过题目'));
+    else if (platform === 'qoj') rating.append(el('strong', '', source.submissionCount != null ? fmt(source.submissionCount) : '—'), el('small', '', '提交记录'));
+    else rating.append(el('strong', '', source.profile.rating ?? '—'), el('small', '', `Rating · 最高 ${source.profile.maxRating ?? '—'}`));
     card.append(platformLogo(platform), title, rating, link('↗', source.profile.url, 'profile-link'));
     return card;
   }));
 }
 
 function renderHeatmap() {
+  $('.activity-panel').hidden = hasOnlyUndatedRecords();
+  if (hasOnlyUndatedRecords()) return;
   const calendar = calendarDays(state.year);
   const weekCount = calendar.at(-1).week + 1;
   const heatmap = $('#heatmap');
@@ -98,10 +106,12 @@ function renderHeatmap() {
   heatmap.replaceChildren(...children);
   const yearDays = [...counts.entries()].filter(([day]) => day.startsWith(String(state.year)));
   const total = yearDays.reduce((sum, [, count]) => sum + count, 0);
-  $('#activity-summary').textContent = `${state.year} 年解开 ${fmt(total)} 道新题，留下 ${yearDays.length} 天足迹`;
+  $('#activity-summary').textContent = state.platform !== 'all' && !data.sources[state.platform]?.lastSuccess ? '等待首次同步，尚无可展示的记录' : `${state.year} 年解开 ${fmt(total)} 道新题，留下 ${yearDays.length} 天足迹`;
 }
 
 function renderDaily() {
+  $('#daily').hidden = hasOnlyUndatedRecords();
+  if (hasOnlyUndatedRecords()) return;
   $('#date-select').value = state.date;
   $('#next-day').disabled = state.date >= today;
   const selected = (state.mode === 'all' ? visibleEvents : [...visibleFirst.values()]).filter(event => dateKey(event.epoch) === state.date).sort((a, b) => b.epoch - a.epoch || b.id - a.id);
@@ -110,6 +120,11 @@ function renderDaily() {
   const date = new Date(`${state.date}T00:00:00+08:00`);
   $('#daily-title').textContent = `${Number(state.date.slice(5, 7))} 月 ${Number(state.date.slice(8))} 日 · ${new Intl.DateTimeFormat('zh-CN', { timeZone: TIMEZONE, weekday: 'long' }).format(date)}`;
   $('#daily-summary').textContent = `${state.date} / ${dailyNew} 道新题 · ${dailyAll} 次 AC`;
+  if (state.platform !== 'all' && !data.sources[state.platform]?.lastSuccess) {
+    $('#daily-summary').textContent = `${state.date} / 等待首次同步`;
+    $('#daily-list').replaceChildren(empty(`${PLATFORM_NAMES[state.platform]} 尚未连接`, '完成数据源配置后，每日 AC 记录会出现在这里。'));
+    return;
+  }
   if (!selected.length) {
     $('#daily-list').replaceChildren(empty(state.mode === 'first' && dailyAll ? '这一天复习了已经解开的题目' : '这一天还没有 AC 记录', state.mode === 'first' && dailyAll ? '切换到「全部 AC」查看重复通过的记录。' : '可以在上方热力图中选择其他日期。'));
     return;
@@ -133,7 +148,38 @@ function renderDaily() {
   }));
 }
 
+function renderUndated() {
+  const all = [...undatedIds].map(id => problems.get(id)).filter(inPlatform);
+  $('#undated').hidden = all.length === 0;
+  if (!all.length) return;
+  if (hasOnlyUndatedRecords()) $('#undated-details').open = true;
+  $('#undated-heading').textContent = `已通过题目 · ${fmt(all.length)} 题`;
+  const query = state.undatedSearch.toLocaleLowerCase().trim();
+  const filtered = all.filter(problem => !query || `${problem.id} ${problem.name} ${problem.difficultyLabel || ''}`.toLocaleLowerCase().includes(query));
+  const size = 25;
+  const pages = Math.max(1, Math.ceil(filtered.length / size));
+  state.undatedPage = Math.min(state.undatedPage, pages);
+  const rows = filtered.slice((state.undatedPage - 1) * size, state.undatedPage * size).map(problem => {
+    const row = el('article', 'undated-row');
+    const body = el('div'); body.append(link(problem.name, problem.url, 'problem-name'));
+    const meta = el('div', 'problem-meta');
+    meta.append(el('span', 'problem-index', problem.index), el('span', '', PLATFORM_NAMES[problem.platform]));
+    if (problem.difficultyLabel) meta.append(el('span', '', problem.difficultyLabel));
+    meta.append(el('span', '', 'AC 时间未知')); body.append(meta);
+    const badge = el('span', 'ac-badge', '✓'); badge.title = '已通过，首次 AC 时间未知'; badge.setAttribute('aria-label', badge.title);
+    row.append(platformLogo(problem.platform), body, badge); return row;
+  });
+  $('#undated-list').replaceChildren(...(rows.length ? rows : [empty('没有符合条件的题目', '试试题号、名称或难度。')]));
+  $('#undated-count').textContent = `共 ${fmt(filtered.length)} 题`;
+  $('#undated-page').textContent = `${state.undatedPage} / ${pages}`;
+  $('#undated-prev').disabled = state.undatedPage === 1;
+  $('#undated-next').disabled = state.undatedPage === pages;
+}
+
 function renderContests() {
+  $('#contests').hidden = hasOnlyUndatedRecords();
+  if (hasOnlyUndatedRecords()) return;
+  $('#contest-scope-note').hidden = state.platform !== 'qoj';
   const query = state.search.toLocaleLowerCase().trim();
   const filtered = contests.filter(contest => {
     if (!inPlatform(contest) || (state.kind !== 'all' && contest.kind !== state.kind)) return false;
@@ -169,7 +215,7 @@ function renderContests() {
     const row = el('tr'); const cell = el('td'); cell.colSpan = 3; cell.append(empty('没有符合条件的比赛', '试试其他平台、类别，或清空搜索内容。')); row.append(cell); rows.push(row);
   }
   $('#contest-rows').replaceChildren(...rows);
-  $('#contest-count').textContent = `共 ${fmt(filtered.length)} 场比赛${filtered.length ? ` · 显示 ${(state.page - 1) * PAGE_SIZE + 1}–${Math.min(state.page * PAGE_SIZE, filtered.length)}` : ''}`;
+  $('#contest-count').textContent = state.platform === 'qoj' && !data.sources.qoj?.lastSuccess ? '等待 QOJ 首次同步' : `共 ${fmt(filtered.length)} 场比赛${filtered.length ? ` · 显示 ${(state.page - 1) * PAGE_SIZE + 1}–${Math.min(state.page * PAGE_SIZE, filtered.length)}` : ''}`;
   $('#page-label').textContent = `${state.page} / ${pages}`;
   $('#prev-page').disabled = state.page === 1; $('#next-page').disabled = state.page === pages;
 }
@@ -178,7 +224,7 @@ function renderPlatform() {
   visibleEvents = events.filter(inPlatform);
   visibleFirst = new Map([...first].filter(([, event]) => inPlatform(event)));
   counts = dailyCounts([...visibleFirst.values()]);
-  renderStats(); renderProfiles(); renderHeatmap(); renderDaily();
+  renderStats(); renderProfiles(); renderHeatmap(); renderDaily(); renderUndated();
   const kinds = [...new Set(contests.filter(inPlatform).map(contest => contest.kind))].sort();
   if (!kinds.includes(state.kind)) state.kind = 'all';
   $('#contest-kind').replaceChildren(new Option('所有类别', 'all'), ...kinds.map(kind => new Option(kind, kind)));
@@ -198,7 +244,7 @@ function chooseDay(day) {
 function bindEvents() {
   $('#platform-filter').addEventListener('click', event => {
     const button = event.target.closest('button'); if (!button) return;
-    state.platform = button.dataset.platform; state.page = 1;
+    state.platform = button.dataset.platform; state.page = 1; state.undatedPage = 1;
     $('#platform-filter').querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
     renderPlatform();
   });
@@ -218,6 +264,9 @@ function bindEvents() {
   for (const name of ['kind', 'status']) $('#contest-' + name).addEventListener('change', event => { state[name] = event.target.value; state.page = 1; renderContests(); });
   $('#prev-page').addEventListener('click', () => { state.page--; renderContests(); });
   $('#next-page').addEventListener('click', () => { state.page++; renderContests(); });
+  $('#undated-search').addEventListener('input', event => { state.undatedSearch = event.target.value; state.undatedPage = 1; renderUndated(); });
+  $('#undated-prev').addEventListener('click', () => { state.undatedPage--; renderUndated(); });
+  $('#undated-next').addEventListener('click', () => { state.undatedPage++; renderUndated(); });
   const refreshDate = () => {
     const currentDay = dateKey(Date.now() / 1000);
     if (currentDay === today) return;
@@ -242,23 +291,27 @@ async function start() {
     const response = await fetch('./data/dashboard.json', { cache: 'no-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     data = await response.json();
-    if (data.schemaVersion !== 1 || !data.problems || !data.sources) throw new Error('不支持的数据格式');
+    if (data.schemaVersion !== 2 || !data.problems || !data.sources || !Array.isArray(data.undatedSolved)) throw new Error('不支持的数据格式');
     problems = new Map(data.problems.map(problem => [problem.id, problem]));
     events = data.accepted; first = firstAccepted(events); attempted = new Set(data.attempted);
-    contests = data.contests.map(contest => ({ ...contest, progress: completion(contest, first, attempted) })).sort((a, b) => b.startEpoch - a.startEpoch || b.id.localeCompare(a.id, undefined, { numeric: true }));
+    solvedIds = solvedProblemIds(events, data.undatedSolved);
+    undatedIds = new Set(data.undatedSolved.filter(id => !first.has(id)));
+    contests = data.contests.filter(includedContest).map(contest => ({ ...contest, progress: completion(contest, first, attempted) })).sort((a, b) => (b.startEpoch || b.lastSubmissionEpoch || 0) - (a.startEpoch || a.lastSubmissionEpoch || 0) || b.id.localeCompare(a.id, undefined, { numeric: true }));
     const years = new Set([state.year, ...events.map(event => Number(dateKey(event.epoch).slice(0, 4)))]);
     $('#year-select').replaceChildren(...[...years].sort((a, b) => b - a).map(year => new Option(String(year), String(year))));
     const latest = events.length ? events.reduce((a, b) => a.epoch > b.epoch ? a : b) : null;
     state.date = latest ? dateKey(latest.epoch) : today;
-    const sourceDates = Object.values(data.sources).map(source => Date.parse(source.lastSuccess));
-    const oldest = Math.min(...sourceDates);
     $('#sync-label').textContent = `更新于 ${stamp.format(new Date(data.generatedAt))} · UTC+8`;
     const alerts = [];
     for (const [platform, source] of Object.entries(data.sources)) {
-      if (source.error || Date.now() - Date.parse(source.lastSuccess) > 36 * 3600 * 1000) alerts.push(`${PLATFORM_NAMES[platform]} 暂未更新，展示 ${stamp.format(new Date(source.lastSuccess))} 的记录。`);
+      if (!source.lastSuccess) {
+        alerts.push(`${PLATFORM_NAMES[platform]} 尚未连接，未计入统计。${source.message || '等待首次同步。'}`);
+        continue;
+      }
+      if (source.collectionMethod === 'browser_import') alerts.push(`${PLATFORM_NAMES[platform]} 展示 ${stamp.format(new Date(source.lastSuccess))} 手动导入的记录，${platform === 'luogu' ? '自动采集未启用' : '自动更新待连接'}。`);
+      else if (source.error || Date.now() - Date.parse(source.lastSuccess) > 36 * 3600 * 1000) alerts.push(`${PLATFORM_NAMES[platform]} 暂未更新，展示 ${stamp.format(new Date(source.lastSuccess))} 的记录。`);
       if (source.warnings?.length) alerts.push(`${PLATFORM_NAMES[platform]}：${source.warnings.join('；')}`);
     }
-    if (!Number.isFinite(oldest)) alerts.push('部分数据尚未完成首次同步。');
     $('#source-alerts').replaceChildren(...alerts.map(message => el('p', 'source-warning', message)));
     renderPlatform(); bindEvents();
     $('#dashboard').hidden = false; $('#loading').hidden = true;

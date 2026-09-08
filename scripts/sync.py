@@ -15,9 +15,11 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
+from qoj import QojClient, collect as collect_qoj_records
 
 ROOT = Path(__file__).resolve().parents[1]
 HANDLE = "Lucius7"
+QOJ_HANDLE = os.environ.get("QOJ_HANDLE") or HANDLE
 AT = "https://kenkoooo.com/atcoder"
 CF = "https://codeforces.com"
 SOURCE_DIR = ROOT / "data" / "sources"
@@ -330,30 +332,62 @@ def collect_codeforces(client, previous):
     return make_snapshot("codeforces", problems, contests, accepted, attempted, profile, warnings, len(submissions))
 
 
-def make_snapshot(platform, problems, contests, accepted, attempted, profile, warnings, submission_count):
+def collect_qoj(client, previous):
+    qoj_client = QojClient(os.environ.get("QOJ_COOKIE", ""))
+    return make_snapshot("qoj", **collect_qoj_records(qoj_client, QOJ_HANDLE, previous), handle=QOJ_HANDLE)
+
+
+def pending_qoj(error=None):
+    return {"lastSuccess": None, "profile": {"handle": QOJ_HANDLE, "url": f"https://qoj.ac/user/profile/{QOJ_HANDLE}", "rating": None, "maxRating": None, "rank": None, "lastSuccess": None}, "warnings": [], "submissionCount": None, "error": error, "status": "error" if error else "needs_auth", "coverage": "submission_history", "collectionMethod": "authenticated_http", "message": "提交记录需要登录，等待配置定时同步。"}
+
+
+def pending_luogu():
+    return {"lastSuccess": None, "profile": {"handle": HANDLE, "url": "https://www.luogu.com.cn/user/571082", "rating": None, "maxRating": None, "rank": None, "lastSuccess": None}, "warnings": [], "submissionCount": None, "error": None, "status": "needs_import", "coverage": "solved_only", "collectionMethod": "browser_import", "message": "等待导入公开通过题目；自动采集未启用。"}
+
+
+def make_snapshot(platform, problems, contests, accepted, attempted, profile, warnings, submission_count, handle=HANDLE, undatedSolved=(), capturedAt=None, reportedCounts=None, collectionMethod=None):
     final_contests = [contest for contest in contests.values() if contest["problems"]]
     for contest in final_contests:
         contest["problems"].sort(key=lambda key: index_order(contest.get("problemIndices", {}).get(key, problems[key]["index"])))
-    snapshot = {"schemaVersion": 1, "platform": platform, "handle": HANDLE, "lastSuccess": now(), "profile": profile, "warnings": warnings, "submissionCount": submission_count, "problems": sorted(problems.values(), key=lambda problem: problem["id"]), "contests": sorted(final_contests, key=lambda contest: contest["id"]), "accepted": sorted(accepted, key=lambda event: (event["epoch"], event["id"])), "attempted": sorted(attempted)}
+    snapshot = {"schemaVersion": 1, "platform": platform, "handle": handle, "lastSuccess": now(), "profile": profile, "warnings": warnings, "submissionCount": submission_count, "problems": sorted(problems.values(), key=lambda problem: problem["id"]), "contests": sorted(final_contests, key=lambda contest: contest["id"]), "accepted": sorted(accepted, key=lambda event: (event["epoch"], event["id"])), "attempted": sorted(attempted)}
+    snapshot["undatedSolved"] = sorted(undatedSolved)
+    snapshot["coverage"] = "solved_only" if platform == "luogu" else "submission_history"
+    snapshot["collectionMethod"] = collectionMethod or ("authenticated_http" if platform == "qoj" else "http")
+    if capturedAt:
+        snapshot["lastSuccess"] = capturedAt
+    if reportedCounts is not None:
+        snapshot["reportedCounts"] = reportedCounts
     validate(snapshot)
     return snapshot
 
 
 def validate(snapshot):
-    if snapshot.get("schemaVersion") != 1 or snapshot.get("handle") != HANDLE:
+    expected_handle = QOJ_HANDLE if snapshot.get("platform") == "qoj" else HANDLE
+    if snapshot.get("schemaVersion") != 1 or snapshot.get("handle") != expected_handle:
         raise ValueError("Snapshot schema or handle mismatch")
     problems = {problem["id"] for problem in snapshot["problems"]}
     if len(problems) != len(snapshot["problems"]):
         raise ValueError("Duplicate problem identity")
     if len({event["id"] for event in snapshot["accepted"]}) != len(snapshot["accepted"]):
         raise ValueError("Duplicate accepted submission")
-    if not problems or not snapshot["contests"]:
+    if snapshot.get("platform") not in {"qoj", "luogu"} and (not problems or not snapshot["contests"]):
         raise ValueError("Unexpected empty problem or contest catalogue")
+    if snapshot.get("platform") == "qoj" and any(not contest.get("hasSubmissions") for contest in snapshot["contests"]):
+        raise ValueError("QOJ catalogue must only contain contests with submissions")
     for event in snapshot["accepted"]:
         if event["problemId"] not in problems or event["epoch"] <= 0:
             raise ValueError("Invalid accepted submission")
     if not set(snapshot["attempted"]).issubset(problems):
         raise ValueError("Attempted problem missing from catalogue")
+    undated = snapshot.get("undatedSolved", [])
+    if len(set(undated)) != len(undated) or not set(undated).issubset(problems):
+        raise ValueError("Invalid undated solved problem mapping")
+    if not set(undated).issubset(snapshot["attempted"]):
+        raise ValueError("Undated solved problem missing from attempted set")
+    if set(undated) & {event["problemId"] for event in snapshot["accepted"]}:
+        raise ValueError("A solved problem cannot have both known and unknown AC time")
+    if snapshot.get("platform") == "luogu" and (snapshot["accepted"] or snapshot["contests"] or snapshot["submissionCount"] is not None):
+        raise ValueError("Luogu profile import must not invent submission history or contests")
     for contest in snapshot["contests"]:
         if len(set(contest["problems"])) != len(contest["problems"]) or not set(contest["problems"]).issubset(problems):
             raise ValueError("Invalid contest problem mapping")
@@ -363,7 +397,7 @@ def refresh_source(platform, collector, client, previous):
     try:
         snapshot = collector(client, previous)
         # Empty success responses should not erase an established history silently.
-        if previous and previous["submissionCount"] > 0 and snapshot["submissionCount"] == 0:
+        if previous and (previous["submissionCount"] or 0) > 0 and snapshot["submissionCount"] == 0:
             raise ValueError("Empty submission history after an established nonempty snapshot")
         return snapshot, None
     except Exception as error:
@@ -378,32 +412,53 @@ def main():
     parser.add_argument("--offline", action="store_true", help="Build dashboard from existing source snapshots without requests")
     args = parser.parse_args()
     client, sources, snapshots, failed = Client(), {}, [], []
-    for platform, collector in (("atcoder", collect_atcoder), ("codeforces", collect_codeforces)):
+    for platform, collector in (("atcoder", collect_atcoder), ("codeforces", collect_codeforces), ("qoj", collect_qoj), ("luogu", None)):
         path = SOURCE_DIR / f"{platform}.json"
         previous = read_json(path)
-        if args.offline:
+        if platform == "luogu" and previous is None:
+            sources[platform] = pending_luogu()
+            print("Luogu: awaiting public-profile import; no network requests enabled", flush=True)
+            continue
+        if platform == "qoj" and previous is None and (args.offline or not os.environ.get("QOJ_COOKIE")):
+            sources[platform] = pending_qoj()
+            print("QOJ: awaiting first authenticated sync; excluded from totals", flush=True)
+            continue
+        if args.offline or platform == "luogu":
             if not previous:
                 raise RuntimeError(f"Missing cached snapshot: {path}")
             snapshot, error = previous, None
             validate(snapshot)
         else:
-            snapshot, error = refresh_source(platform, collector, client, previous)
+            try:
+                snapshot, error = refresh_source(platform, collector, client, previous)
+            except RuntimeError as first_error:
+                if platform != "qoj":
+                    raise
+                sources[platform] = pending_qoj(str(first_error))
+                failed.append(platform)
+                print(f"::warning::QOJ first sync failed: {first_error}", flush=True)
+                continue
             if error is None:
                 atomic_json(path, snapshot)
         if error:
             failed.append(platform)
             print(f"::warning::{platform}: using previous snapshot. {error}", flush=True)
         source = {key: snapshot[key] for key in ("lastSuccess", "profile", "warnings", "submissionCount")}
+        source["coverage"] = snapshot.get("coverage", "submission_history")
+        source["collectionMethod"] = snapshot.get("collectionMethod", "http")
+        if "reportedCounts" in snapshot:
+            source["reportedCounts"] = snapshot["reportedCounts"]
         source["error"] = error
         sources[platform] = source
         snapshots.append(snapshot)
-        count = len({event["problemId"] for event in snapshot["accepted"]})
+        count = len({event["problemId"] for event in snapshot["accepted"]} | set(snapshot.get("undatedSolved", [])))
         print(f"{platform}: {count} solved, {len(snapshot['accepted'])} AC submissions", flush=True)
-    dashboard = {"schemaVersion": 1, "handle": HANDLE, "timezone": "Asia/Taipei", "generatedAt": now(), "sources": sources}
-    for key in ("problems", "contests", "accepted", "attempted"):
-        dashboard[key] = [item for snapshot in snapshots for item in snapshot[key]]
+    dashboard = {"schemaVersion": 2, "handle": HANDLE, "timezone": "Asia/Taipei", "generatedAt": now(), "sources": sources}
+    for key in ("problems", "contests", "accepted", "attempted", "undatedSolved"):
+        dashboard[key] = [item for snapshot in snapshots for item in snapshot.get(key, [])]
     atomic_json(OUTPUT, dashboard)
-    summary = f"Lucius7: {len({event['problemId'] for event in dashboard['accepted']})} solved problems, {len(dashboard['accepted'])} AC submissions.\n"
+    solved = {event['problemId'] for event in dashboard['accepted']} | set(dashboard['undatedSolved'])
+    summary = f"Lucius7: {len(solved)} solved problems, {len(dashboard['accepted'])} recorded AC submissions, {len(dashboard['undatedSolved'])} solved problems without AC timestamps.\n"
     if failed:
         summary += f"Stale sources: {', '.join(failed)}. Previous successful snapshots retained.\n"
     print(summary, flush=True)

@@ -37,8 +37,11 @@ jobs:
           node-version: '22'
       - name: Test data and date logic
         run: npm test
-      - name: Sync public AtCoder and Codeforces records
+      - name: Sync AtCoder, Codeforces and connected QOJ records
         id: sync
+        env:
+          QOJ_COOKIE: ${{ secrets.QOJ_COOKIE }}
+          QOJ_HANDLE: ${{ vars.QOJ_HANDLE }}
         run: python3 scripts/sync.py
       - name: Build static site
         run: npm run build

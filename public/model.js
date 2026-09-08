@@ -1,5 +1,14 @@
 export const TIMEZONE = 'Asia/Taipei';
-export const PLATFORM_NAMES = { atcoder: 'AtCoder', codeforces: 'Codeforces' };
+export const PLATFORM_NAMES = { atcoder: 'AtCoder', codeforces: 'Codeforces', qoj: 'QOJ', luogu: '洛谷' };
+export const PLATFORM_CODES = { atcoder: 'At', codeforces: 'Cf', qoj: 'Q', luogu: '洛' };
+
+export function solvedProblemIds(events, undatedSolved = []) {
+  return new Set([...events.map(event => event.problemId), ...undatedSolved]);
+}
+
+export function includedContest(contest) {
+  return contest.platform !== 'qoj' || contest.hasSubmissions === true;
+}
 
 export function dateKey(epochSeconds) {
   return new Date(epochSeconds * 1000 + 8 * 3600 * 1000).toISOString().slice(0, 10);

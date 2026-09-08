@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lucius7 解题日志 · 公开快照 API",
-    "version": "1.0.0",
-    "description": "GitHub Pages 上的只读 JSON 文件。当前 schemaVersion=1，支持 AtCoder 与 Codeforces。无认证、查询筛选、服务端分页或写入接口。按各平台 lastSuccess 判断新鲜度；HTTP 200 不代表上游同步成功。",
+    "version": "2.0.0",
+    "description": "GitHub Pages 上的只读 JSON 文件。schemaVersion=2 支持 AtCoder、Codeforces、QOJ 与洛谷。累计解题取 accepted 的题目 ID 与 undatedSolved 的并集；未知 AC 时间不参与日期统计。QOJ 可用已授权登录态定时同步，洛谷仅手动导入，绝不自动采集。公开接口无认证、查询筛选、分页或写入；HTTP 200 不代表各源数据已更新。",
     "contact": {
       "name": "qwq repository",
       "url": "https://github.com/theLucius7/qwq"
@@ -66,16 +66,20 @@
         "type": "string",
         "enum": [
           "atcoder",
-          "codeforces"
+          "codeforces",
+          "qoj",
+          "luogu"
         ],
-        "description": "当前已发布的平台；QOJ 与洛谷尚未接入。"
+        "description": "v2 平台。QOJ 为提交历史；洛谷为手动导入的无 AC 时间通过题目。"
       },
       "ProblemId": {
         "type": "string",
-        "description": "带平台前缀的题目唯一 ID。CF 特殊题库可使用 codeforces:problemset:{problemsetName}:{index}。",
+        "description": "带平台前缀的题目唯一 ID。QOJ 使用 qoj:{problemId}；洛谷使用 luogu:{problemId}；CF 特殊题库使用 codeforces:problemset:{problemsetName}:{index}。",
         "examples": [
           "atcoder:abc001_1",
-          "codeforces:1:A"
+          "codeforces:1:A",
+          "qoj:1",
+          "luogu:P1001"
         ]
       },
       "ContestId": {
@@ -83,12 +87,13 @@
         "description": "带平台前缀的比赛唯一 ID，与题目 ID 属于独立集合。",
         "examples": [
           "atcoder:abc001",
-          "codeforces:1"
+          "codeforces:1",
+          "qoj:1"
         ]
       },
       "Profile": {
         "type": "object",
-        "description": "用户 Rating 摘要；可选 Rating 获取失败时保留旧值及旧时间。",
+        "description": "平台资料。AtCoder / Codeforces 提供 Rating；QOJ / 洛谷的 Rating、最高 Rating、段位及 Rating 更新时间均为 null。",
         "required": [
           "handle",
           "url",
@@ -150,12 +155,17 @@
           "profile",
           "warnings",
           "submissionCount",
-          "error"
+          "error",
+          "coverage",
+          "collectionMethod"
         ],
         "properties": {
           "lastSuccess": {
-            "type": "string",
-            "description": "该平台提交与目录快照最后成功更新时间，UTC。",
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "最后成功快照的时间。手动导入为原始 capturedAt，不能作为 AC 时间；尚未连接时为 null。",
             "format": "date-time"
           },
           "profile": {
@@ -169,16 +179,52 @@
             "description": "供人阅读的可选数据提示，不是固定错误码。"
           },
           "submissionCount": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
-            "description": "按提交 ID 去重的全部公开提交数量，含失败及重复提交。"
+            "description": "按提交 ID 去重的历史提交数，含失败和重复；洛谷与未连接来源为 null，不能解释成 0。"
           },
           "error": {
             "type": [
               "string",
               "null"
             ],
-            "description": "本次核心同步失败文本；正常成功及离线重建时均为 null，应结合 lastSuccess 判断新鲜度。"
+            "description": "本次核心同步失败文本；成功、离线重建及复用手动快照为 null。结合 lastSuccess、coverage 与 collectionMethod 判断。"
+          },
+          "coverage": {
+            "type": "string",
+            "enum": [
+              "submission_history",
+              "solved_only"
+            ],
+            "description": "记录范围。solved_only 当前用于洛谷，不能从中推断 AC 时间或提交次数。"
+          },
+          "collectionMethod": {
+            "type": "string",
+            "enum": [
+              "http",
+              "authenticated_http",
+              "browser_import"
+            ],
+            "description": "当前成功快照的获取方式。browser_import 是手动导入，不表示定时刷新；待连接来源表示预期获取方式。"
+          },
+          "reportedCounts": {
+            "$ref": "#/components/schemas/ReportedCounts"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "needs_auth",
+              "needs_import",
+              "error"
+            ],
+            "description": "可省略；用于无成功快照时的待授权、待导入或首次失败状态。已有快照的同步错误由 error 表示。"
+          },
+          "message": {
+            "type": "string",
+            "description": "可省略；未连接状态的说明。"
           }
         },
         "additionalProperties": true
@@ -231,14 +277,21 @@
               "integer",
               "null"
             ],
-            "description": "AtCoder Problems 换算后的估计难度或 CF 题目 rating；0 是有效值。"
+            "description": "AtCoder 换算难度或 CF rating；QOJ / 洛谷为 null。0 是有效数值。"
+          },
+          "difficultyLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "可省略；洛谷公开页面的难度分组文字，不能转换或当作题目 rating。"
           }
         },
         "additionalProperties": true
       },
       "Contest": {
         "type": "object",
-        "description": "比赛与题目是多对多关系。完成进度统计所有历史 AC，不只赛内提交。",
+        "description": "比赛与题目是多对多关系。QOJ 仅含真实提交链接涉及的比赛，hasSubmissions 必须为 true；洛谷不提供比赛。",
         "required": [
           "id",
           "platform",
@@ -255,7 +308,13 @@
             "$ref": "#/components/schemas/ContestId"
           },
           "platform": {
-            "$ref": "#/components/schemas/Platform"
+            "type": "string",
+            "enum": [
+              "atcoder",
+              "codeforces",
+              "qoj"
+            ],
+            "description": "当前具备比赛目录的平台；洛谷不提供比赛数据。"
           },
           "name": {
             "type": "string",
@@ -304,13 +363,18 @@
           "hasSubmissions": {
             "type": "boolean",
             "description": "实际在此比赛有提交，与共享题在其他比赛通过是不同概念。"
+          },
+          "lastSubmissionEpoch": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "可省略；QOJ 本场最新提交时间（Unix 秒）。开始时间未知时可用于排序，不是开赛时间。"
           }
         },
         "additionalProperties": true
       },
       "AcceptedSubmission": {
         "type": "object",
-        "description": "AtCoder result=AC 或 Codeforces verdict=OK 的提交，含重复通过。",
+        "description": "有真实时间的通过提交，含重复。AtCoder result=AC、Codeforces verdict=OK，QOJ 明确 AC/Accepted 或得分等于正的满分；洛谷不产生提交事件。",
         "required": [
           "id",
           "platform",
@@ -324,7 +388,13 @@
             "description": "源平台提交 ID，仅平台内唯一；跨平台键使用 (platform, id)。"
           },
           "platform": {
-            "$ref": "#/components/schemas/Platform"
+            "type": "string",
+            "enum": [
+              "atcoder",
+              "codeforces",
+              "qoj"
+            ],
+            "description": "当前有时间提交历史的平台；洛谷无逐条提交记录。"
           },
           "problemId": {
             "$ref": "#/components/schemas/ProblemId"
@@ -344,7 +414,7 @@
       },
       "Dashboard": {
         "type": "object",
-        "description": "Lucius7 公开解题看板静态快照。允许未知附加字段；客户端应检查 schemaVersion。",
+        "description": "v2 四平台静态快照。累计解题为 accepted 的题目 ID 与 undatedSolved 的并集；只从 accepted 统计日期。无顶层预计算 summary，未知日期题数为 undatedSolved.length。",
         "required": [
           "schemaVersion",
           "handle",
@@ -354,12 +424,13 @@
           "problems",
           "contests",
           "accepted",
-          "attempted"
+          "attempted",
+          "undatedSolved"
         ],
         "properties": {
           "schemaVersion": {
             "type": "integer",
-            "const": 1,
+            "const": 2,
             "description": "数据版本，与 OpenAPI 格式和文档版本不同。"
           },
           "handle": {
@@ -379,16 +450,24 @@
           },
           "sources": {
             "type": "object",
-            "description": "当前发布包含两个平台状态。",
+            "description": "四平台状态，包括尚未连接的来源；不能把 lastSuccess=null 当作空的成功历史。",
             "required": [
               "atcoder",
-              "codeforces"
+              "codeforces",
+              "qoj",
+              "luogu"
             ],
             "properties": {
               "atcoder": {
                 "$ref": "#/components/schemas/Source"
               },
               "codeforces": {
+                "$ref": "#/components/schemas/Source"
+              },
+              "qoj": {
+                "$ref": "#/components/schemas/Source"
+              },
+              "luogu": {
                 "$ref": "#/components/schemas/Source"
               }
             },
@@ -406,14 +485,14 @@
             "items": {
               "$ref": "#/components/schemas/Contest"
             },
-            "description": "比赛目录，包括未参加的常规比赛与有提交的 Gym。"
+            "description": "AtCoder / CF 常规比赛、已提交的 Gym 与 QOJ 比赛；洛谷没有比赛数据。"
           },
           "accepted": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AcceptedSubmission"
             },
-            "description": "各平台通过记录合并，含重复 AC，非全局时间顺序；按 problemId 取最早 epoch 得到首次 AC。"
+            "description": "有真实时间的通过记录，含重复，非全局时间顺序。仅从此数组计算每日 AC/首次 AC；四平台累计解题还须并入 undatedSolved。"
           },
           "attempted": {
             "type": "array",
@@ -422,9 +501,41 @@
             },
             "uniqueItems": true,
             "description": "已尝试题目的去重 ID，包含已 AC 题目。"
+          },
+          "undatedSolved": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemId"
+            },
+            "uniqueItems": true,
+            "description": "已通过但 AC 时间未知的题目 ID，引用 problems；也是 attempted 子集，且与 accepted 的 problemId 集合不相交。当前来自洛谷；不能用采集日期生成 AC 事件。"
           }
         },
         "additionalProperties": true
+      },
+      "ReportedCounts": {
+        "type": "object",
+        "required": [
+          "solved",
+          "submitted"
+        ],
+        "properties": {
+          "solved": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "页面显示的通过题目数，与导入唯一题目数量核对。"
+          },
+          "submitted": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "页面显示的“提交”摘要。其统计口径未验证为逐条提交数，不能替代 Source.submissionCount。"
+          }
+        },
+        "additionalProperties": true,
+        "description": "可选的来源页面摘要，当前用于洛谷。"
       }
     }
   }
