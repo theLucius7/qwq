@@ -3,7 +3,7 @@
   "info": {
     "title": "Lucius7 解题日志 · 公开快照 API",
     "version": "2.0.0",
-    "description": "GitHub Pages 上的只读 JSON 文件。schemaVersion=2 支持 AtCoder、Codeforces、QOJ 与洛谷。累计解题取 accepted 的题目 ID 与 undatedSolved 的并集；未知 AC 时间不参与日期统计。QOJ 可用已授权登录态定时同步，洛谷仅手动导入，绝不自动采集。公开接口无认证、查询筛选、分页或写入；HTTP 200 不代表各源数据已更新。",
+    "description": "GitHub Pages 上的只读 JSON 文件。schemaVersion=2 支持 AtCoder、Codeforces、QOJ 与洛谷。累计解题取 accepted 的题目 ID 与 undatedSolved 的并集；未知 AC 时间不参与日期统计。QOJ 可用已授权登录态定时同步，洛谷每天最多读取一次公开练习页，无登录、不重试；访问限制或页面异常会停止后续请求。公开接口无认证、查询筛选、分页或写入；HTTP 200 不代表各源数据已更新。",
     "contact": {
       "name": "qwq repository",
       "url": "https://github.com/theLucius7/qwq"
@@ -70,7 +70,7 @@
           "qoj",
           "luogu"
         ],
-        "description": "v2 平台。QOJ 为提交历史；洛谷为手动导入的无 AC 时间通过题目。"
+        "description": "v2 平台。QOJ 为提交历史；洛谷为公开练习页提供的无 AC 时间通过题目。"
       },
       "ProblemId": {
         "type": "string",
@@ -191,7 +191,7 @@
               "string",
               "null"
             ],
-            "description": "本次核心同步失败文本；成功、离线重建及复用手动快照为 null。结合 lastSuccess、coverage 与 collectionMethod 判断。"
+            "description": "本次核心同步失败文本；成功或离线重建为 null。洛谷当日复用缓存时保留该次请求的失败状态。结合 lastSuccess、coverage 与 collectionMethod 判断。"
           },
           "coverage": {
             "type": "string",

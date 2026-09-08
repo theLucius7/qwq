@@ -16,6 +16,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 from qoj import QojClient, collect as collect_qoj_records
+import luogu
 
 ROOT = Path(__file__).resolve().parents[1]
 HANDLE = "Lucius7"
@@ -337,12 +338,38 @@ def collect_qoj(client, previous):
     return make_snapshot("qoj", **collect_qoj_records(qoj_client, QOJ_HANDLE, previous), handle=QOJ_HANDLE)
 
 
+def collect_luogu(client, previous):
+    state_path = SOURCE_DIR / "luogu-request.json"
+    state = read_json(state_path, {})
+    if state.get("paused"):
+        raise RuntimeError(state.get("error") or "洛谷自动请求已停止，等待维护者核验。")
+    stamp = now()
+    # The persisted budget also applies to manual and push-triggered Actions runs.
+    if state.get("lastAttempt", "")[:10] == stamp[:10]:
+        if state.get("error"):
+            raise RuntimeError(state["error"])
+        if previous:
+            return previous
+        raise RuntimeError("洛谷今日已请求一次，等待下次更新。")
+    state = {"lastAttempt": stamp, "paused": False, "error": None}
+    atomic_json(state_path, state)
+    try:
+        snapshot = make_snapshot("luogu", **luogu.fetch_public(), collectionMethod="http")
+        if previous and previous.get("undatedSolved") and not snapshot["undatedSolved"]:
+            raise luogu.AccessStopped("洛谷返回空通过名单，已停止自动请求并保留原记录。")
+        return snapshot
+    except Exception as error:
+        state.update(error=str(error), paused=isinstance(error, luogu.AccessStopped))
+        atomic_json(state_path, state)
+        raise
+
+
 def pending_qoj(error=None):
     return {"lastSuccess": None, "profile": {"handle": QOJ_HANDLE, "url": f"https://qoj.ac/user/profile/{QOJ_HANDLE}", "rating": None, "maxRating": None, "rank": None, "lastSuccess": None}, "warnings": [], "submissionCount": None, "error": error, "status": "error" if error else "needs_auth", "coverage": "submission_history", "collectionMethod": "authenticated_http", "message": "提交记录需要登录，等待配置定时同步。"}
 
 
-def pending_luogu():
-    return {"lastSuccess": None, "profile": {"handle": HANDLE, "url": "https://www.luogu.com.cn/user/571082", "rating": None, "maxRating": None, "rank": None, "lastSuccess": None}, "warnings": [], "submissionCount": None, "error": None, "status": "needs_import", "coverage": "solved_only", "collectionMethod": "browser_import", "message": "等待导入公开通过题目；自动采集未启用。"}
+def pending_luogu(error=None):
+    return {"lastSuccess": None, "profile": {"handle": HANDLE, "url": "https://www.luogu.com.cn/user/571082", "rating": None, "maxRating": None, "rank": None, "lastSuccess": None}, "warnings": [], "submissionCount": None, "error": error, "status": "error" if error else "needs_import", "coverage": "solved_only", "collectionMethod": "http", "message": "等待首次公开练习页同步。"}
 
 
 def make_snapshot(platform, problems, contests, accepted, attempted, profile, warnings, submission_count, handle=HANDLE, undatedSolved=(), capturedAt=None, reportedCounts=None, collectionMethod=None):
@@ -412,18 +439,18 @@ def main():
     parser.add_argument("--offline", action="store_true", help="Build dashboard from existing source snapshots without requests")
     args = parser.parse_args()
     client, sources, snapshots, failed = Client(), {}, [], []
-    for platform, collector in (("atcoder", collect_atcoder), ("codeforces", collect_codeforces), ("qoj", collect_qoj), ("luogu", None)):
+    for platform, collector in (("atcoder", collect_atcoder), ("codeforces", collect_codeforces), ("qoj", collect_qoj), ("luogu", collect_luogu)):
         path = SOURCE_DIR / f"{platform}.json"
         previous = read_json(path)
-        if platform == "luogu" and previous is None:
+        if platform == "luogu" and previous is None and args.offline:
             sources[platform] = pending_luogu()
-            print("Luogu: awaiting public-profile import; no network requests enabled", flush=True)
+            print("Luogu: awaiting first public-profile snapshot", flush=True)
             continue
         if platform == "qoj" and previous is None and (args.offline or not os.environ.get("QOJ_COOKIE")):
             sources[platform] = pending_qoj()
             print("QOJ: awaiting first authenticated sync; excluded from totals", flush=True)
             continue
-        if args.offline or platform == "luogu":
+        if args.offline:
             if not previous:
                 raise RuntimeError(f"Missing cached snapshot: {path}")
             snapshot, error = previous, None
@@ -432,11 +459,11 @@ def main():
             try:
                 snapshot, error = refresh_source(platform, collector, client, previous)
             except RuntimeError as first_error:
-                if platform != "qoj":
+                if platform not in {"qoj", "luogu"}:
                     raise
-                sources[platform] = pending_qoj(str(first_error))
+                sources[platform] = (pending_qoj if platform == "qoj" else pending_luogu)(str(first_error))
                 failed.append(platform)
-                print(f"::warning::QOJ first sync failed: {first_error}", flush=True)
+                print(f"::warning::{platform} first sync failed: {first_error}", flush=True)
                 continue
             if error is None:
                 atomic_json(path, snapshot)

@@ -2,7 +2,7 @@
 
 [![每日同步与部署](https://github.com/theLucius7/qwq/actions/workflows/pages.yml/badge.svg)](https://github.com/theLucius7/qwq/actions/workflows/pages.yml)
 
-一个部署在 GitHub Pages 的个人算法做题看板：汇总 Lucius7 的 AtCoder、Codeforces、QOJ 提交记录与洛谷公开通过题目，在同一页展示解题概况、每日 AC 记录和比赛进度。AtCoder / Codeforces 与已配置登录态的 QOJ 每日同步；洛谷使用手动导入快照。
+一个部署在 GitHub Pages 的个人算法做题看板：汇总 Lucius7 的 AtCoder、Codeforces、QOJ 提交记录与洛谷公开通过题目，在同一页展示解题概况、每日 AC 记录和比赛进度。AtCoder / Codeforces 与已配置登录态的 QOJ 每日同步；洛谷每天读取一次公开练习页。
 
 [在线查看](https://thelucius7.github.io/qwq/) · [API 文档](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [公开数据](https://thelucius7.github.io/qwq/data/dashboard.json) · [同步记录](https://github.com/theLucius7/qwq/actions/workflows/pages.yml)
 
@@ -13,7 +13,7 @@
 - **每日记录**：按年份、平台查看热力图，点击日期查看题目、难度和提交时间；支持首次 AC 与全部 AC，首次通过用 `✓` 标记。
 - **比赛进度**：以题目矩阵区分已 AC、尝试过和未完成，支持类别、完成状态和题目搜索；默认显示有提交记录的比赛。
 - **未知时间单独展示**：洛谷已通过题目计入累计解题，但不编造 AC 时间，不计入热力图、每日新增或连续天数；支持题号、名称、难度搜索。
-- **自动更新**：GitHub Actions 每天同步 AtCoder / Codeforces 与已配置登录态的 QOJ，保留上次成功数据并提示故障；洛谷快照仅在手动导入时更新。
+- **自动更新**：GitHub Actions 每天同步 AtCoder / Codeforces 与已配置登录态的 QOJ，保留上次成功数据并提示故障；洛谷每个 UTC 自然日最多读取一次公开页面，遇到访问限制会停止自动请求。
 - **可复用数据**：浏览器读取同源 JSON，其他程序也可以直接获取快照；前端无框架，构建和同步无第三方运行依赖。
 
 ## 平台支持
@@ -23,7 +23,7 @@
 | AtCoder | 已接入 | AtCoder Problems 收录的公开提交、题库、比赛映射、估计难度；官方 Algorithm Rating |
 | Codeforces | 已接入 | 官方 API 可见的提交、题库、比赛和 Rating；已提交的公开 Gym 题表 |
 | QOJ | 已接入；配置 Cookie 后每日同步 | 登录后的提交历史及实际提交涉及的比赛；不展示全站比赛目录 |
-| 洛谷 | 已接入手动快照；自动同步未启用 | 公开练习页的通过题目与已尝试题目，无提交时间、逐条提交历史或比赛进度 |
+| 洛谷 | 已接入公开页面每日同步；无需登录 | 公开练习页的通过题目与已尝试题目，无提交时间、逐条提交历史或比赛进度 |
 
 公开 API 当前为 **`schemaVersion: 2`**，平台为 `atcoder`、`codeforces`、`qoj`、`luogu`。洛谷首次导入确认 **547 道通过题目**，全部标为 AC 时间未知；QOJ 首次快照只含实际有提交记录的 **10 场比赛**。2026-09-08 首次四源汇总为 1,687 道已解题、1,324 次有时间的 AC，547 题时间未知。这些是导入时的数量，最新数据以线上快照为准。来源范围和配置方式见 [API 文档](docs/API.md#上游数据获取)。
 
@@ -42,7 +42,7 @@ npm run dev
 | 命令 | 用途 |
 | --- | --- |
 | `npm run dev` | 在 `127.0.0.1:4173` 提供 `public/`，按 Ctrl+C 停止 |
-| `npm run sync` | 获取 AtCoder / Codeforces 与已配置 QOJ 的提交历史；复用洛谷手动快照并生成看板 JSON |
+| `npm run sync` | 获取 AtCoder / Codeforces 与已配置 QOJ 的提交历史；在每日请求预算内更新洛谷公开通过题目并生成看板 JSON |
 | `python3 scripts/sync.py --offline` | 使用已有平台快照重新生成 JSON，不联网 |
 | `npm test` | 运行 JavaScript 与 Python 的统计、分页、目录和降级测试 |
 | `npm run build` | 校验数据并将静态网站输出到 `dist/` |
@@ -79,7 +79,7 @@ flowchart LR
     A[AtCoder Problems / AtCoder] --> S[Python 同步脚本]
     C[Codeforces API / 公开 Gym 页面] --> S
     Q[QOJ 登录后的 HTML 页面] --> S
-    L[洛谷公开练习页手动导入] --> P[各平台成功快照]
+    L[洛谷公开练习页 · 每天一次] --> P[各平台成功快照]
     S --> P
     P --> J[dashboard.json]
     J --> G[GitHub Pages]
@@ -107,7 +107,7 @@ AtCoder 的共享题使用同一题目 ID；Codeforces 使用 `contestId + index
 - 推送到 `main`。
 - 在 Actions 页面选择该工作流，再点击 **Run workflow** 手动运行。
 
-GitHub 的定时任务可能排队延迟；它不是精确到分钟的定时服务。运行流程为：测试 → 同步 → 构建 → 提交数据快照 → 发布 `dist/`。数据提交带 `[skip ci]` 标记。
+GitHub 的定时任务可能排队延迟；它不是精确到分钟的定时服务。运行流程为：测试 → 同步 → 提交数据快照与请求状态 → 构建 → 发布 `dist/`。数据提交带 `[skip ci]` 标记。
 
 自行部署时：
 
@@ -116,13 +116,15 @@ GitHub 的定时任务可能排队延迟；它不是精确到分钟的定时服�
 3. 确认 Actions 已启用，并允许工作流使用其声明的权限：构建阶段写回仓库数据，部署阶段写入 Pages 并获取 OIDC 身份令牌。组织策略或分支保护若禁止机器人写回，需先调整对应仓库策略。
 4. 手动运行工作流，成功后从 `github-pages` 环境查看站点地址。
 
-AtCoder / Codeforces 同步不需要手动配置 API Key、Cookie 或个人 GitHub Token。QOJ 需要维护者在仓库 **Settings → Secrets and variables → Actions → New repository secret** 手动设置 `QOJ_COOKIE`；可选仓库变量 `QOJ_HANDLE` 默认 `Lucius7`。Cookie 失效后更新 Secret 并重新运行工作流，旧数据会保留并告警。浏览器登录不会自动把登录态传给 Actions；不要把 Cookie 提交到仓库或发到聊天。洛谷不需要 Cookie，且定时工作流不会抓取洛谷。工作流使用 GitHub 自动提供的 `GITHUB_TOKEN`。Fork 后需检查并启用定时工作流；长期无活动的公开仓库可能被 GitHub 停用定时任务。参考 [Pages 自定义工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) 与 [schedule 说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+AtCoder / Codeforces 同步不需要手动配置 API Key、Cookie 或个人 GitHub Token。QOJ 需要维护者在仓库 **Settings → Secrets and variables → Actions → New repository secret** 手动设置 `QOJ_COOKIE`；可选仓库变量 `QOJ_HANDLE` 默认 `Lucius7`。Cookie 失效后更新 Secret 并重新运行工作流，旧数据会保留并告警。浏览器登录不会自动把登录态传给 Actions；不要把 Cookie 提交到仓库或发到聊天。洛谷不需要 Cookie，每个 UTC 自然日最多请求一次公开练习页，不调用个人历史 API。工作流使用 GitHub 自动提供的 `GITHUB_TOKEN`。Fork 后需检查并启用定时工作流；长期无活动的公开仓库可能被 GitHub 停用定时任务。参考 [Pages 自定义工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) 与 [schedule 说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
 
 ### 数据新鲜度与故障处理
 
-对 AtCoder / Codeforces 与已配置 QOJ 每天完整重新读取提交历史，以反映重判和延迟判题；洛谷始终复用手动快照，不向洛谷发起自动请求。每个平台校验成功后原子替换自己的快照。核心获取失败时保留该平台的旧数据，其他平台仍可更新；AtCoder / Codeforces 首次获取失败且无快照时中止发布；QOJ 首次未配置或失败、洛谷尚未导入时标记为未连接，不伪造零条记录。
+对 AtCoder / Codeforces 与已配置 QOJ 每天完整重新读取提交历史，以反映重判和延迟判题；洛谷在每日请求预算内读取公开练习页的内嵌 JSON；当日重复运行复用缓存，不重试或翻页。403 / 429、访问验证、重定向或结构异常会停止后续自动请求并保留旧数据。每个平台校验成功后原子替换自己的快照。核心获取失败时保留该平台的旧数据，其他平台仍可更新；AtCoder / Codeforces 首次获取失败且无快照时中止发布；QOJ 首次未配置或失败、洛谷首次获取失败且无快照时标记为未连接，不伪造零条记录。
 
 降级数据仍会部署，随后工作流报告失败以提示维护者。Rating、估计难度和 Gym 题表属于可选数据，失败时会产生单独提示。网页根据每个平台的 `lastSuccess` 判断新鲜度，超过 36 小时也会提示；汇总的 `generatedAt` 不能替代这个判断。具体回退规则见 [错误与新鲜度](docs/API.md#错误与新鲜度)。
+
+洛谷请求状态保存在 `data/sources/luogu-request.json`。遇到访问限制后，先正常核实源站规则或页面变化；确认可恢复后再清除 `paused` / `error`，保留 `lastAttempt` 以遵守当日预算。不要连续重跑来测试限额。
 
 ## 项目结构
 
@@ -145,7 +147,7 @@ scripts/
   qoj.py                 # 已登录 QOJ 提交与比赛 HTML 解析
   import_browser.py      # 已保存浏览器数据的导入 CLI
   qoj_import.py          # 已导出 QOJ 页面数据的离线规范化
-  luogu.py               # 洛谷公开练习页手动数据的离线规范化
+  luogu.py               # 洛谷公开HTML单次获取与快照规范化
   build.mjs              # 静态构建
 tests/                   # JavaScript 与 Python 测试
 ```
@@ -159,6 +161,6 @@ tests/                   # JavaScript 与 Python 测试
 - [Codeforces 官方 API](https://codeforces.com/apiHelp)、[个人主页](https://codeforces.com/profile/Lucius7)与公开 Gym 比赛页。
 - [CFTracker](https://cftracker.netlify.app/contests)：比赛进度展示参考；本项目直接获取 Codeforces 数据。
 - [QOJ 个人主页](https://qoj.ac/user/profile/Lucius7)：登录后的提交与比赛页面。
-- [洛谷公开练习页](https://www.luogu.com.cn/user/571082/practice)：手动保存的通过题目快照，提供来源与采集时间。
+- [洛谷公开练习页](https://www.luogu.com.cn/user/571082/practice)：无需登录的通过题目快照，提供来源与采集时间；不提供 AC 时间。
 
 页面头像使用 [theLucius7 的 GitHub 头像](https://github.com/theLucius7.png)。项目数据文件仅保存展示所需的题目与提交元数据，不保存提交源码或登录凭据；QOJ Cookie 仅通过运行环境中的 GitHub Secret 使用。上游数据与题目的权利归各自权利人所有。

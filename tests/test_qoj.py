@@ -37,6 +37,16 @@ class FakeClient:
 
 
 class QojTests(unittest.TestCase):
+    def test_raw_username_span_is_checked_before_virtual_contest_marker(self):
+        original = '<a href="//qoj.ac/user/profile/Lucius7">Lucius7</a>'
+        raw = '<span class="uoj-username" data-nickname="Lucius7" data-rated="1">Lucius7</span><sup><a href="/contest/2581">#</a></sup>'
+        document = page(submission_row().replace(original, raw))
+        rows, _ = qoj.parse_submissions(document, 'Lucius7', 1)
+        self.assertEqual(len(rows), 1)
+        for replacement in [raw.replace('>Lucius7</span>', '>SomeoneElse</span>'), 'Lucius7 #', raw + '<a href="/user/profile/Other">Other</a>']:
+            with self.subTest(replacement=replacement), self.assertRaisesRegex(ValueError, 'another user'):
+                qoj.parse_submissions(page(submission_row().replace(original, replacement)), 'Lucius7', 1)
+
     def test_ac_score_is_exact_and_time_uses_utc_plus_eight(self):
         ac_forms = ['AC', 'Accepted', 'AC ✓', 'Accepted ✔', '<a class="uoj-score" data-full="100.000000" data-score="100.000000">AC ✓</a>', '<a class="uoj-score" data-full="200.0" data-score="200.0">200 ✔</a>']
         for result in ac_forms:

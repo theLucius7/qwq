@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [OpenAPI 3.1 契约](openapi.json) · [在线快照](https://thelucius7.github.io/qwq/data/dashboard.json)
 
-本文描述 `schemaVersion: 2`，覆盖 AtCoder、Codeforces、QOJ 与洛谷。v2 新增无 AC 时间的已通过题目，并区分完整提交历史与手动通过题目快照；累计解题不能再仅使用 `accepted`。实现依据为 [同步器](../scripts/sync.py)、[前端统计模型](../public/model.js) 和 [部署工作流](../.github/workflows/pages.yml)。上游接口说明核对日期：2026-09-08。
+本文描述 `schemaVersion: 2`，覆盖 AtCoder、Codeforces、QOJ 与洛谷。v2 新增无 AC 时间的已通过题目，并区分完整提交历史与无时间的通过题目快照；累计解题不能再仅使用 `accepted`。实现依据为 [同步器](../scripts/sync.py)、[前端统计模型](../public/model.js) 和 [部署工作流](../.github/workflows/pages.yml)。上游接口说明核对日期：2026-09-08。
 
 ## 目录
 
@@ -42,7 +42,7 @@ GitHub Pages 托管静态文件。添加 `?handle=...`、`?date=...` 等参数�
 | --- | --- |
 | 读取当前部署数据 | 请求上面的 Pages JSON 地址 |
 | 固定到某次仓库版本 | 从该 commit 读取 `public/data/dashboard.json`，如 `git show <commit>:public/data/dashboard.json` |
-| 本地联网更新 | `npm run sync` 更新 AtCoder / Codeforces / 已配置 QOJ，复用洛谷快照；不直接发布 |
+| 本地联网更新 | `npm run sync` 更新 AtCoder / Codeforces / 已配置 QOJ，在每日预算内更新洛谷公开页；不直接发布 |
 | 本地离线重建 | 执行 `python3 scripts/sync.py --offline`；需要已有 `data/sources/*.json` |
 | 刷新线上数据 | 在 GitHub Actions 运行 **Daily sync and GitHub Pages**，等待部署完成 |
 
@@ -179,7 +179,7 @@ for platform, source in data["sources"].items():
 | `profile` | `Profile` | 用户 Rating 摘要 |
 | `warnings` | `string[]` | 可选数据缺失或陈旧提示；成功时也可能非空 |
 | `submissionCount` | integer 或 null | 提交历史去重后的总提交数，含非 AC / 重复；洛谷与未连接来源为 null，不能当作 0 |
-| `error` | string 或 null | 本次该平台核心同步错误；成功、离线重建和仅复用洛谷快照时为 null |
+| `error` | string 或 null | 本次该平台核心同步错误；成功或离线重建时为 null；每日预算内跳过请求时保留该次请求的错误状态 |
 | `coverage` | string | `submission_history` 或 `solved_only`，说明是否具备逐条提交历史 |
 | `collectionMethod` | string | `http`、`authenticated_http` 或 `browser_import`，表示当前成功快照的获取方式 |
 | `reportedCounts` | object，可省略 | 来源页面展示的摘要数字，见下文；当前用于洛谷 |
@@ -188,7 +188,7 @@ for platform, source in data["sources"].items():
 
 `error`、`warnings`、`message` 是供人阅读的文本，不是稳定错误码。空错误不证明数据刚刚刷新；始终结合 `lastSuccess` 和 `collectionMethod`。
 
-`coverage: "solved_only"` 当前用于洛谷：只有通过题目及已尝试状态，不能生成 AC 次数和日期。`collectionMethod: "browser_import"` 表示手动导入，**不表示每天自动刷新**；QOJ 首次也可从正常登录浏览器的已导出页面导入，此后配置 Secret 的成功同步会变成 `authenticated_http`。
+`coverage: "solved_only"` 当前用于洛谷：只有通过题目及已尝试状态，不能生成 AC 次数和日期。`collectionMethod: "browser_import"` 表示手动导入，**不表示每天自动刷新**；QOJ 首次也可从正常登录浏览器的已导出页面导入，此后配置 Secret 的成功同步会变成 `authenticated_http`；洛谷公开页同步成功后为 `http`。
 
 `reportedCounts` 若存在，包含 `solved: integer` 与 `submitted: integer | null`，分别保留页面“通过”和“提交”摘要。洛谷“提交”摘要的口径未被验证为逐条提交总数，因此不填入 `submissionCount`，也不可推算 AC 次数。`solved` 会与去重后的导入通过题目数核对。
 
@@ -300,7 +300,7 @@ console.table(progress);
 
 ## 上游数据获取
 
-这部分供维护同步器使用。普通 API 使用方读取一次本项目快照即可，无需直接访问上游。网络采集使用 `GET`，洛谷走已有文件导入；以下源站地址不是本项目新增的 API 路由。
+这部分供维护同步器使用。普通 API 使用方读取一次本项目快照即可，无需直接访问上游。网络采集使用 `GET`，洛谷只读取公开练习页的初始 HTML；以下源站地址不是本项目新增的 API 路由。
 
 ### AtCoder Problems
 
@@ -384,13 +384,23 @@ curl --fail --silent --show-error --max-time 45 \
 
 浏览器登录本身不会将 Cookie 自动传到 GitHub Actions。请求只向 `https://qoj.ac` 携带 Cookie；拒绝跨域重定向，遇到登录页、访问验证、401 / 403 或 429 会停止本次 QOJ 同步。已有快照时保留旧数据并告警，无旧快照时提供未连接状态。Cookie 有效也不保证站点允许来自 Actions 的请求；遇到验证需正常处理，不能绕过。
 
-### 洛谷：公开通过题目手动快照
+### 洛谷：每天一次的公开练习页
 
-来源为 [Lucius7 公开练习页](https://www.luogu.com.cn/user/571082/practice)，用户 UID 为 `571082`。从用户正常打开的页面保存通过题号、名称、难度分组，以及已尝试题目；**不会自动抓取洛谷、调用个人历史 API 或使用 Cookie**。
+来源为 [Lucius7 公开练习页](https://www.luogu.com.cn/user/571082/practice)，用户 UID 为 `571082`。同步器无登录读取该页面一次，仅解析初始 HTML 中的 `script#lentille-context[type="application/json"]`。其中 `data.passed`、`data.submitted` 与 `data.user` 提供通过名单、未通过的尝试名单、UID / 用户名与摘要计数。**不调用个人历史 API、不翻页、不使用 Cookie，也不请求页面脚本或图片。**
 
 首次规范化得到 **547 道通过题目、589 道目录 / 已尝试题目**。所有通过题目放入 `undatedSolved`；`accepted: []`、`contests: []`、`submissionCount: null`。采集时间仅用于 Source `lastSuccess`；不能把 547 题归到导入当天，也无法根据此快照恢复历史每日练习、AC 次数或比赛进度。
 
-源状态为 `coverage: "solved_only"`、`collectionMethod: "browser_import"`。页面“通过”“提交”摘要存入 `reportedCounts`，其中“提交”不冒充逐条提交数量。`npm run sync` 和每日 Actions 只复用 `data/sources/luogu.json`，其 `lastSuccess` 保持原采集时间，直到维护者再次导入新快照。
+源状态为 `coverage: "solved_only"`；公开页面同步成功后 `collectionMethod: "http"`，手动导入仍为 `browser_import`。页面“通过”“提交”摘要存入 `reportedCounts`，其中“提交”不冒充逐条提交数量。校验要求唯一 JSON 上下文、正确模板 / 账号、题目数组存在且不重复，以及通过数量与通过名单一致；已建立非空快照后拒绝空名单。未知难度保留 null。
+
+请求预算持久化在内部文件 `data/sources/luogu-request.json`：`lastAttempt` 是最近尝试的 UTC 时间，`error` 是该次错误，`paused` 表示停止后续请求。请求前写入预算，同步步骤结束后、构建网站前随数据提交保留；同一 UTC 日期的推送或手动运行复用记录。网络 / 5xx 失败当日不重试；401 / 403 / 429、重定向、访问验证或结构错误设置 `paused: true`，之后即使跨天也不会请求。维护者正常核实后才可将 `paused` 改为 false、清除 `error`；保留 `lastAttempt`，当日预算仍有效。若工作流被强制终止、状态未提交或使用另一个独立检出，不应假设它们共享这一预算。
+
+单次公开读取示例（遵守每日预算，不要与同步器重复运行）：
+
+```sh
+curl --fail --silent --show-error --max-time 40 \
+  'https://www.luogu.com.cn/user/571082/practice' \
+  --output luogu-practice.html
+```
 
 ### 手动导入已保存的浏览器数据
 
@@ -434,7 +444,7 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 
 每次请求超时为 45 秒，最多尝试 3 次；前两次失败后分别等待 3 秒、6 秒，再按主机间隔继续。请求带可识别的项目 User-Agent。该限制是单进程内的设置，不协调多台机器或多个同步进程；维护者应避免重复启动采集器。
 
-现有 AtCoder / Codeforces 客户端未实现特殊的 `Retry-After` 解析或针对 403 / 429 的独立停止策略，不能把有限重试误写为这些能力。上游拒绝访问或限流时应检查官方规则和运行记录，避免手工连续重跑。QOJ 使用独立客户端：起始间隔 2.2 秒、超时 40 秒，普通网络错误最多 3 次尝试并等待 3 / 6 秒；登录或访问验证、401 / 403 / 429 立即停止，不重试。洛谷导入完全不联网，不使用上述节流策略；这些设置不是账号不会被限制的保证。
+现有 AtCoder / Codeforces 客户端未实现特殊的 `Retry-After` 解析或针对 403 / 429 的独立停止策略，不能把有限重试误写为这些能力。上游拒绝访问或限流时应检查官方规则和运行记录，避免手工连续重跑。QOJ 使用独立客户端：起始间隔 2.2 秒、超时 40 秒，普通网络错误最多 3 次尝试并等待 3 / 6 秒；登录或访问验证、401 / 403 / 429 立即停止，不重试。洛谷公开页客户端超时 40 秒，每个 UTC 自然日最多发起一次请求，无自动重试或重定向；手动文件导入仍不联网。这些保守设置不是源站公布的配额，也不保证账号或请求永远不会被限制。
 
 ## 错误与新鲜度
 
@@ -445,9 +455,9 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 | AtCoder / CF 首次失败且无缓存 | 同步中止，不覆盖汇总 JSON，不进入本次部署；此前已成功写入的其他平台快照可以保留 |
 | QOJ 首次无 Cookie 或离线且无缓存 | `lastSuccess: null`、`submissionCount: null`、`status: "needs_auth"`，不计入统计 |
 | QOJ 首次已尝试但失败且无缓存 | `status: "error"`、错误文本与 null 时间 / 数量；其他来源仍可部署，并报告降级 |
-| 洛谷尚无手动快照 | `status: "needs_import"`、null 时间 / 提交数，不联网、不伪造 0 道题 |
+| 洛谷首次获取失败且无快照 | `status: "error"`、null 时间 / 提交数；离线且无快照时为 `needs_import`，不伪造 0 道题 |
 | QOJ Cookie 失效或必需页面失败，有缓存 | 保留整份 QOJ 历史与旧时间，设置 `error` 并报告降级 |
-| 洛谷已有手动快照 | 普通同步仅校验并复用，不联网、不更新其采集时间 |
+| 洛谷当天已请求或自动请求已停止 | 复用成功快照，不更新其采集时间；失败原因保留在 `error`，不再发出请求 |
 | 原本非空的提交历史突然变为空 | 拒绝覆盖，按核心同步失败处理 |
 | Rating 失败 | 保留旧 Rating 及 Profile `lastSuccess`，增加 warning；首次无旧值时保持 null |
 | AtCoder 难度模型失败 | 本次难度为 null，增加 warning，不沿用旧难度 |
@@ -462,7 +472,7 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 2. `sources[platform].lastSuccess` 距当前时间多久；网页以超过 36 小时为陈旧提示阈值。
 3. `warnings` 是否说明可选数据有问题；Rating 另看 `profile.lastSuccess`。
 
-`collectionMethod: "browser_import"` 的来源必须按手动采集时间理解；36 小时提示不意味着程序将自动刷新洛谷。`generatedAt` 只表示汇总生成时间。AtCoder Problems 的收录也可能落后于 AtCoder 实时提交，即使本项目刚刚同步成功，仍受上游延迟影响。
+`collectionMethod: "browser_import"` 表示当前数据仍来自手动采集；一次成功的公开页同步才会将洛谷改为 `http`。每日预算跳过请求或访问停止时，不能把汇总生成时间当成新的采集时间。`generatedAt` 只表示汇总生成时间。AtCoder Problems 的收录也可能落后于 AtCoder 实时提交，即使本项目刚刚同步成功，仍受上游延迟影响。
 
 GitHub Actions 会先部署可用的降级快照，然后通过 `degraded=true` 将工作流标为失败，便于发现问题。仅可选数据的 warnings 不会设置这个降级标记。不要用“站点 HTTP 200”或“工作流成功”代替逐平台的新鲜度检查。
 
@@ -470,7 +480,7 @@ GitHub Actions 会先部署可用的降级快照，然后通过 `degraded=true` 
 
 本项目的 QOJ 采集使用正常登录的账号会话，不提供代理登录或无认证的实时用户历史接口。只有实际返回且能验证的提交和比赛纳入快照；不绕过登录页、人机验证或访问限制。已有快照的 Cookie 失效时保留旧数据并提示；首次未连接时不伪造 0 条提交。
 
-洛谷当前只导入用户正常打开的公开练习页中的题目资料，不调用历史提交 API、不自动翻页采集，也不使用 Cookie 或测试账号限额。已查阅的 [官方 OpenAPI](https://docs.lgapi.cn/open/openapi) 主要提供评测任务提交、结果和配额查询，不能当作个人历史提交接口。当前未确认适用于本需求的官方历史接口和调用配额，所以 **`npm run sync` 与 GitHub Actions 不向洛谷发出网络请求**。导入流程在本地校验已有数据，不保证网页本身永远可访问。
+洛谷同步只读取公开练习页，不调用历史提交 API、不自动翻页，不使用 Cookie 或测试账号限额。2026-09-08 核对的 [robots.txt](https://www.luogu.com.cn/robots.txt) 未禁止该用户练习页；[公开规则](https://help.luogu.com.cn/ula/luogu) 未给出此页面的数值调用配额，因此每天一次是项目自己的保守请求预算，不是官方授权额度。[官方 OpenAPI](https://docs.lgapi.cn/open/openapi) 的评测提交、结果与配额接口不能用于恢复个人历史 AC 时间。若规则、页面或访问权限变化，应停止并核实，不能绕过验证。
 
 ## 版本与维护
 

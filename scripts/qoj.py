@@ -231,7 +231,11 @@ def parse_submissions(document, handle, page):
             if len(cells) < 9:
                 raise ValueError("QOJ submission table columns changed")
             users = [local_path(a.attrs.get("href", "")).removeprefix("/user/profile/") for a in cells[2].find("a") if local_path(a.attrs.get("href", "")).startswith("/user/profile/")]
-            if handle not in users and cells[2].text() != handle:
+            # The raw response uses username spans. QOJ's JavaScript turns them
+            # into profile links; virtual-contest markers are separate siblings.
+            if not users:
+                users = [node.text() for node in cells[2].find("span") if "uoj-username" in node.attrs.get("class", "").split()]
+            if (users and set(users) != {handle}) or (not users and cells[2].text() != handle):
                 raise ValueError("QOJ returned submissions for another user")
             candidates = [(a, problem_reference(a.attrs.get("href", ""))) for a in cells[1].find("a")]
             candidates = [(a, ref) for a, ref in candidates if ref]

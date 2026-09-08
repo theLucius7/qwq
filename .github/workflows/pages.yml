@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Check out source and previous successful snapshots
         uses: actions/checkout@v6
+        with:
+          ref: main
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -37,15 +39,14 @@ jobs:
           node-version: '22'
       - name: Test data and date logic
         run: npm test
-      - name: Sync AtCoder, Codeforces and connected QOJ records
+      - name: Sync records and the daily public Luogu profile
         id: sync
         env:
           QOJ_COOKIE: ${{ secrets.QOJ_COOKIE }}
           QOJ_HANDLE: ${{ vars.QOJ_HANDLE }}
         run: python3 scripts/sync.py
-      - name: Build static site
-        run: npm run build
       - name: Preserve snapshots for the next sync
+        if: always() && (steps.sync.outcome == 'success' || steps.sync.outcome == 'failure')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -54,6 +55,8 @@ jobs:
             git commit -m "data: refresh Lucius7 AC journal [skip ci]"
             git push
           fi
+      - name: Build static site
+        run: npm run build
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload site
