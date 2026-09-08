@@ -1,33 +1,33 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OJFlare · 公开快照 API",
+    "title": "OJFlare · Public snapshot API",
     "version": "2.2.0",
-    "description": "GitHub Pages 上的只读 JSON 文件，schemaVersion=2。当前启用 AtCoder、Codeforces、QOJ 与牛客；洛谷暂时停用，不请求、不导出、不计入统计。比赛仅包含有实际提交的记录。累计解题取 accepted 的题目 ID 与 undatedSolved 的并集，后者当前为空数组。牛客仅收录公开编程练习，每日增量、每七天全量核对，不保证比赛内记录完整；QOJ 用已授权登录态定时同步。公开接口无认证、查询筛选、分页或写入；HTTP 200 不代表各源已更新。本契约描述当前部署，旧快照应使用对应提交的契约。",
+    "description": "Read-only JSON hosted on GitHub Pages, schemaVersion=2. AtCoder, Codeforces, QOJ, and Nowcoder are enabled. Luogu is temporarily disabled, without requests, exports, or statistical contribution. Only contests with actual submissions are included. Total solved is the union of problem IDs in accepted and undatedSolved; the latter is currently empty. Nowcoder covers public coding practice only, with daily incremental collection and full checks every seven days, without guaranteed in-contest completeness. QOJ synchronizes with an authorized session. The public interface has no authentication, query filtering, pagination, or writes. HTTP 200 does not establish source freshness. This contract describes the current deployment; use the matching commit's contract for older snapshots.",
     "contact": {
       "name": "OJFlare repository",
       "url": "https://github.com/xw7qwq/ojflare"
     }
   },
   "externalDocs": {
-    "description": "字段、调用示例、上游获取与失败处理",
+    "description": "Fields, usage examples, upstream collection, and failure handling",
     "url": "https://github.com/xw7qwq/ojflare/blob/main/docs/API.md"
   },
   "servers": [
     {
       "url": "https://ojflare.lucius7.dev",
-      "description": "OJFlare 生产环境（GitHub Pages）"
+      "description": "OJFlare production (GitHub Pages)"
     },
     {
       "url": "http://127.0.0.1:4173",
-      "description": "本地 npm run dev"
+      "description": "Local npm run dev"
     }
   ],
   "security": [],
   "tags": [
     {
       "name": "Dashboard",
-      "description": "公开看板快照"
+      "description": "Public dashboard snapshot"
     }
   ],
   "paths": {
@@ -37,11 +37,11 @@
           "Dashboard"
         ],
         "operationId": "getDashboard",
-        "summary": "读取 Lucius7 的完整看板快照",
-        "description": "一次返回完整 JSON；日期、平台与比赛筛选由客户端完成。响应由 GitHub Pages 提供，缓存策略由托管服务管理。源站错误放在 sources 中，且可能返回旧数据。",
+        "summary": "Read Lucius7's complete dashboard snapshot",
+        "description": "Returns the complete JSON; clients filter dates, platforms, and contests. GitHub Pages serves the response and manages caching. Upstream errors appear in sources, and older data may be returned.",
         "responses": {
           "200": {
-            "description": "成功读取快照；应另行检查各平台 error、warnings 和 lastSuccess。",
+            "description": "Snapshot retrieved successfully; also inspect each platform's error, warnings, and lastSuccess.",
             "content": {
               "application/json": {
                 "schema": {
@@ -51,10 +51,10 @@
             }
           },
           "404": {
-            "description": "静态资源未找到；响应由托管服务提供，不保证 JSON 错误结构。"
+            "description": "Static resource not found. The hosting service supplies the response without a guaranteed JSON error structure."
           },
           "default": {
-            "description": "其他 HTTP 错误由托管服务提供，本项目未定义统一错误体。"
+            "description": "The hosting service supplies other HTTP errors. This project defines no common error body."
           }
         }
       }
@@ -70,11 +70,11 @@
           "qoj",
           "nowcoder"
         ],
-        "description": "当前启用的四个平台；洛谷暂时停用。牛客仅为公开编程练习范围。"
+        "description": "The four currently enabled platforms. Luogu is temporarily disabled; Nowcoder covers public coding practice only."
       },
       "ProblemId": {
         "type": "string",
-        "description": "带平台前缀的题目唯一 ID。QOJ 使用 qoj:{problemId}；CF 特殊题库使用 codeforces:problemset:{problemsetName}:{index}。牛客使用 nowcoder:{problemId}，对应公开 /acm/problem/ 题号。",
+        "description": "Unique problem ID with a platform prefix. QOJ uses qoj:{problemId}; special CF problemsets use codeforces:problemset:{problemsetName}:{index}. Nowcoder uses nowcoder:{problemId}, corresponding to public /acm/problem/ IDs.",
         "examples": [
           "atcoder:abc001_1",
           "codeforces:1:A",
@@ -84,7 +84,7 @@
       },
       "ContestId": {
         "type": "string",
-        "description": "带平台前缀的比赛唯一 ID，与题目 ID 属于独立集合。",
+        "description": "Unique contest ID with a platform prefix, in a separate set from problem IDs.",
         "examples": [
           "atcoder:abc001",
           "codeforces:1",
@@ -93,7 +93,7 @@
       },
       "Profile": {
         "type": "object",
-        "description": "平台资料。AtCoder / Codeforces 提供当前与最高 Rating；牛客仅提供当前 Rating，最高值与段位为 null；QOJ的 Rating、最高 Rating、段位及 Rating 更新时间均为 null。",
+        "description": "Platform profile. AtCoder / Codeforces provide current and peak ratings. Nowcoder provides only the current rating, with null peak and rank. QOJ rating, peak, rank, and rating update time are all null.",
         "required": [
           "handle",
           "url",
@@ -105,14 +105,14 @@
         "properties": {
           "handle": {
             "type": "string",
-            "description": "平台用户名。",
+            "description": "Platform username.",
             "examples": [
               "Lucius7"
             ]
           },
           "url": {
             "type": "string",
-            "description": "平台用户主页。",
+            "description": "Platform profile URL.",
             "format": "uri"
           },
           "rating": {
@@ -120,28 +120,28 @@
               "integer",
               "null"
             ],
-            "description": "当前 Rating；未知或未定级时为 null。"
+            "description": "Current rating; null if unknown or unrated."
           },
           "maxRating": {
             "type": [
               "integer",
               "null"
             ],
-            "description": "最高 Rating；未知或未定级时为 null。"
+            "description": "Peak rating; null if unknown or unrated."
           },
           "rank": {
             "type": [
               "string",
               "null"
             ],
-            "description": "AtCoder 当前为 Algorithm；Codeforces 为官方段位。"
+            "description": "Currently Algorithm for AtCoder; official rank for Codeforces."
           },
           "lastSuccess": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Rating 独立的最后成功获取时间；可能早于 Source.lastSuccess。",
+            "description": "Independent last successful rating collection time; may precede Source.lastSuccess.",
             "format": "date-time"
           }
         },
@@ -149,7 +149,7 @@
       },
       "Source": {
         "type": "object",
-        "description": "单个平台的同步状态。HTTP 200 仍可返回旧快照。",
+        "description": "Synchronization state for one platform. HTTP 200 can still return an old snapshot.",
         "required": [
           "lastSuccess",
           "profile",
@@ -165,7 +165,7 @@
               "string",
               "null"
             ],
-            "description": "最后成功快照的时间。手动导入为原始 capturedAt，不能作为 AC 时间；尚未连接时为 null。",
+            "description": "Last successful snapshot time. Manual imports use the original capturedAt, which is not an AC time. Null when not connected.",
             "format": "date-time"
           },
           "profile": {
@@ -176,7 +176,7 @@
             "items": {
               "type": "string"
             },
-            "description": "供人阅读的可选数据提示，不是固定错误码。"
+            "description": "Human-readable optional-data notices, not fixed error codes."
           },
           "submissionCount": {
             "type": [
@@ -184,14 +184,14 @@
               "null"
             ],
             "minimum": 0,
-            "description": "按提交 ID 去重的历史提交数，含失败和重复；未连接来源为 null，不能解释成 0。"
+            "description": "History submissions deduplicated by submission ID, including failures and repeats. Null when not connected, not zero."
           },
           "error": {
             "type": [
               "string",
               "null"
             ],
-            "description": "本次核心同步失败文本；成功或离线重建为 null。牛客当日复用缓存时保留该次请求的失败状态。结合 lastSuccess、coverage 与 collectionMethod 判断。"
+            "description": "This run's core synchronization error text; null after success or offline rebuilding. Nowcoder retains the request's failure state when reusing the daily cache. Interpret with lastSuccess, coverage, and collectionMethod."
           },
           "coverage": {
             "type": "string",
@@ -199,7 +199,7 @@
               "submission_history",
               "solved_only"
             ],
-            "description": "submission_history 表示具备已收录范围内的逐条提交历史，不保证所有私有/比赛记录完整；solved_only 表示仅通过题目名单，缺少 AC 时间。 solved_only 仅用于旧快照兼容，当前不输出洛谷。"
+            "description": "submission_history provides individual history within collected coverage, without guaranteeing complete private or in-contest records. solved_only provides only a solved list without AC times. solved_only remains for older snapshots; Luogu is not currently exported."
           },
           "collectionMethod": {
             "type": "string",
@@ -208,7 +208,7 @@
               "authenticated_http",
               "browser_import"
             ],
-            "description": "当前成功快照的获取方式。browser_import 是手动导入，不表示定时刷新；待连接来源表示预期获取方式。"
+            "description": "How the current successful snapshot was collected. browser_import means manual import, not scheduled refresh. An unconnected source indicates the expected method."
           },
           "reportedCounts": {
             "$ref": "#/components/schemas/ReportedCounts"
@@ -221,25 +221,25 @@
               "error",
               "needs_sync"
             ],
-            "description": "可省略；用于无成功快照时的待授权、待导入或首次失败状态。已有快照的同步错误由 error 表示。"
+            "description": "Optional state for a source without a successful snapshot, such as awaiting authorization/import or a failed first attempt. Errors with an existing snapshot appear in error."
           },
           "message": {
             "type": "string",
-            "description": "可省略；未连接状态的说明。"
+            "description": "Optional explanation of an unconnected state."
           },
           "dataScope": {
             "type": "string",
             "enum": [
               "practice_coding"
             ],
-            "description": "可省略。牛客仅收录公开编程练习；不保证涵盖比赛内提交或全账号首次 AC。"
+            "description": "Optional. Nowcoder covers public coding practice only, without guaranteed in-contest submissions or account-wide first ACs."
           }
         },
         "additionalProperties": true
       },
       "Problem": {
         "type": "object",
-        "description": "收录的题目，包括用户未尝试的题目；不可用数组长度统计已解题数。",
+        "description": "Cataloged problems, including unattempted ones. Array length is not a solved count.",
         "required": [
           "id",
           "platform",
@@ -261,11 +261,11 @@
               "string",
               "null"
             ],
-            "description": "题库主要比赛关联，格式与 ContestId 相同；特殊题库可为 null，也不保证非空值出现在 contests 中。"
+            "description": "Primary contest association in the catalog, using the ContestId format. Special problemsets may use null; non-null IDs are not guaranteed to appear in contests."
           },
           "index": {
             "type": "string",
-            "description": "主要题库目录中的题目标号。",
+            "description": "Problem label in the primary catalog.",
             "examples": [
               "A",
               "D1"
@@ -273,11 +273,11 @@
           },
           "name": {
             "type": "string",
-            "description": "题目名称；缺失时可能回退为题号。"
+            "description": "Problem name; may fall back to its ID when missing."
           },
           "url": {
             "type": "string",
-            "description": "题目详情链接，请直接使用此值。",
+            "description": "Problem detail URL; use this value directly.",
             "format": "uri"
           },
           "difficulty": {
@@ -285,21 +285,21 @@
               "integer",
               "null"
             ],
-            "description": "AtCoder 换算难度或 CF rating；QOJ / 牛客为 null。0 是有效数值。"
+            "description": "Converted AtCoder difficulty or CF rating; null for QOJ / Nowcoder. Zero is valid."
           },
           "difficultyLabel": {
             "type": [
               "string",
               "null"
             ],
-            "description": "历史洛谷快照的难度分组文字，当前不产生；字段保留兼容性，不能当作数值 rating。"
+            "description": "Difficulty-group text from historical Luogu snapshots, not currently produced. Retained for compatibility, not a numeric rating."
           }
         },
         "additionalProperties": true
       },
       "Contest": {
         "type": "object",
-        "description": "比赛与题目为多对多关系。所有平台仅导出有实际提交的比赛，hasSubmissions 恒为 true；共享题在其他比赛通过不能作为本场提交证据。牛客不提供比赛，洛谷已停用。",
+        "description": "Contests and problems have a many-to-many relationship. Only contests with actual submissions are exported on every platform, with hasSubmissions always true. Solving a shared problem elsewhere is not evidence of a submission in this contest. Nowcoder provides no contests; Luogu is disabled.",
         "required": [
           "id",
           "platform",
@@ -322,15 +322,15 @@
               "codeforces",
               "qoj"
             ],
-            "description": "当前具备比赛目录的平台；洛谷与牛客不提供比赛数据。"
+            "description": "Platforms currently providing contest catalogs. Luogu and Nowcoder provide no contest data."
           },
           "name": {
             "type": "string",
-            "description": "比赛名称。"
+            "description": "Contest name."
           },
           "kind": {
             "type": "string",
-            "description": "展示类别，不使用封闭枚举。",
+            "description": "Display category, not a closed enum.",
             "examples": [
               "ABC",
               "ADT",
@@ -341,11 +341,11 @@
           },
           "startEpoch": {
             "type": "integer",
-            "description": "Unix 秒；0 表示开始时间未知。"
+            "description": "Unix seconds; zero means an unknown start time."
           },
           "url": {
             "type": "string",
-            "description": "比赛详情链接。",
+            "description": "Contest detail URL.",
             "format": "uri"
           },
           "problems": {
@@ -355,35 +355,35 @@
             },
             "minItems": 1,
             "uniqueItems": true,
-            "description": "比赛题目 ID，引用 Dashboard.problems，按本场题号排列。"
+            "description": "Contest problem IDs referencing Dashboard.problems, ordered by their labels in this contest."
           },
           "problemIndices": {
             "type": "object",
-            "description": "可省略。题目 ID 到本场标号的映射；某题没有映射时回退到 Problem.index。",
+            "description": "Optional mapping from problem IDs to labels in this contest; fall back to Problem.index when an entry is missing.",
             "additionalProperties": {
               "type": "string"
             }
           },
           "catalogComplete": {
             "type": "boolean",
-            "description": "按当前来源获得完整目录。false 时分母应显示 ?，不能认定整场完成。"
+            "description": "Complete catalog from current sources. If false, display ? as the denominator and do not mark the contest fully completed."
           },
           "hasSubmissions": {
             "type": "boolean",
-            "description": "用户实际在此比赛有提交；当前导出恒为 true，无需 AC 或正式参赛。",
+            "description": "The user has an actual submission in this contest. Always true in current exports; neither acceptance nor official participation is required.",
             "const": true
           },
           "lastSubmissionEpoch": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "可省略；QOJ 本场最新提交时间（Unix 秒）。开始时间未知时可用于排序，不是开赛时间。"
+            "description": "Optional latest submission time for a QOJ contest in Unix seconds. Can be used for sorting when the start is unknown; it is not the contest start."
           }
         },
         "additionalProperties": true
       },
       "AcceptedSubmission": {
         "type": "object",
-        "description": "有真实时间的通过提交，含重复。AtCoder result=AC、Codeforces verdict=OK，QOJ 明确 AC/Accepted 或得分等于正的满分，牛客公开编程练习行明确显示“答案正确”；洛谷不产生提交事件。",
+        "description": "Accepted submissions with real timestamps, including repeats. AtCoder requires result=AC, Codeforces verdict=OK, QOJ explicit AC/Accepted or a score equal to a positive full score, and Nowcoder public practice the explicit upstream verdict for acceptance. Luogu produces no submission events.",
         "required": [
           "id",
           "platform",
@@ -394,7 +394,7 @@
         "properties": {
           "id": {
             "type": "integer",
-            "description": "源平台提交 ID，仅平台内唯一；跨平台键使用 (platform, id)。"
+            "description": "Source platform submission ID, unique only within the platform. Use (platform, id) across platforms."
           },
           "platform": {
             "type": "string",
@@ -404,7 +404,7 @@
               "qoj",
               "nowcoder"
             ],
-            "description": "当前有时间提交历史的平台；洛谷无逐条提交记录。"
+            "description": "Platforms currently providing timestamped submission history. Luogu has no individual submission records."
           },
           "problemId": {
             "$ref": "#/components/schemas/ProblemId"
@@ -412,11 +412,11 @@
           "epoch": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "当前判定通过的提交的提交时间，Unix 秒；不是评测完成时间或重判转 AC 的时刻。牛客页面无时区后缀，按 UTC+8 解释；首次 AC 仅限已采集的公开编程练习范围。"
+            "description": "Submission time of a currently accepted submission, in Unix seconds; not judging completion or the time of a rejudge to AC. Nowcoder page times have no timezone suffix and are interpreted as UTC+8; first ACs cover only collected public coding practice."
           },
           "url": {
             "type": "string",
-            "description": "此提交的详情链接。",
+            "description": "Detail URL for this submission.",
             "format": "uri"
           }
         },
@@ -424,7 +424,7 @@
       },
       "Dashboard": {
         "type": "object",
-        "description": "当前启用四个平台的 v2 静态快照，排除洛谷。累计解题为 accepted 的题目 ID 与 undatedSolved 的并集；只从 accepted 统计日期。undatedSolved 当前为空，无顶层预计算 summary。",
+        "description": "Current v2 static snapshot for four enabled platforms, excluding Luogu. Total solved is the union of problem IDs in accepted and undatedSolved. Date statistics use only accepted. undatedSolved is currently empty; there is no precomputed top-level summary.",
         "required": [
           "schemaVersion",
           "handle",
@@ -441,26 +441,26 @@
           "schemaVersion": {
             "type": "integer",
             "const": 2,
-            "description": "数据版本，与 OpenAPI 格式和文档版本不同。"
+            "description": "Data version, distinct from the OpenAPI format and document versions."
           },
           "handle": {
             "type": "string",
-            "description": "此部署跟踪的用户。",
+            "description": "User tracked by this deployment.",
             "const": "Lucius7"
           },
           "timezone": {
             "type": "string",
-            "description": "用于统计的固定时区，UTC+8。",
+            "description": "Fixed statistics timezone, UTC+8.",
             "const": "Asia/Taipei"
           },
           "generatedAt": {
             "type": "string",
-            "description": "本次汇总生成时间，不能代替各 Source.lastSuccess。",
+            "description": "This aggregation's generation time, not a substitute for each Source.lastSuccess.",
             "format": "date-time"
           },
           "sources": {
             "type": "object",
-            "description": "当前为 AtCoder / Codeforces / QOJ / 牛客。停用的洛谷不输出状态；较早 v2 快照应使用对应提交的契约。不能把 lastSuccess=null 当作空的成功历史。未知附加来源字段允许存在。",
+            "description": "Currently AtCoder / Codeforces / QOJ / Nowcoder. Disabled Luogu has no state object. Use the matching commit's contract for older v2 snapshots. lastSuccess=null is not an empty successful history. Unknown additional source fields are allowed.",
             "required": [
               "atcoder",
               "codeforces",
@@ -489,21 +489,21 @@
             "items": {
               "$ref": "#/components/schemas/Problem"
             },
-            "description": "收录题库目录，包括未解题目；不承诺跨平台全局排序。"
+            "description": "Cataloged problems, including unsolved ones, without guaranteed global ordering across platforms."
           },
           "contests": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Contest"
             },
-            "description": "用户实际有提交的 AtCoder / Codeforces（含 Gym）/ QOJ 比赛，hasSubmissions 恒为 true；牛客不提供比赛，洛谷已停用。内部全目录不属于此数组。"
+            "description": "AtCoder / Codeforces (including Gym) / QOJ contests with actual user submissions, always hasSubmissions=true. Nowcoder provides no contests; Luogu is disabled. The internal full catalog is outside this array."
           },
           "accepted": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AcceptedSubmission"
             },
-            "description": "有真实时间的通过记录，含重复，非全局时间顺序。仅从此数组计算每日 AC/首次 AC；所有平台累计解题还须并入 undatedSolved。牛客仅为公开编程练习记录。"
+            "description": "Accepted records with real timestamps, including repeats, without global chronological ordering. Use only this array for daily and first-AC statistics; total solved across platforms also includes undatedSolved. Nowcoder covers public coding practice only."
           },
           "attempted": {
             "type": "array",
@@ -511,7 +511,7 @@
               "$ref": "#/components/schemas/ProblemId"
             },
             "uniqueItems": true,
-            "description": "已尝试题目的去重 ID，包含已 AC 题目。"
+            "description": "Deduplicated attempted problem IDs, including accepted problems."
           },
           "undatedSolved": {
             "type": "array",
@@ -519,7 +519,7 @@
               "$ref": "#/components/schemas/ProblemId"
             },
             "uniqueItems": true,
-            "description": "已通过但 AC 时间未知的题目 ID；当前洛谷停用，此数组为空，字段保留兼容性。非空时引用 problems，属于 attempted 子集且与 accepted 的题目集合不相交；不能用采集日期生成 AC 事件。"
+            "description": "Solved problem IDs with unknown AC times. Currently empty while Luogu is disabled, retained for compatibility. Nonempty values reference problems, are a subset of attempted, and are disjoint from problem IDs in accepted. Do not generate AC events using collection dates."
           }
         },
         "additionalProperties": true
@@ -534,7 +534,7 @@
           "solved": {
             "type": "integer",
             "minimum": 0,
-            "description": "页面显示的通过题目数，与导入唯一题目数量核对。"
+            "description": "Solved count displayed by the page, checked against the number of unique imported problems."
           },
           "submitted": {
             "type": [
@@ -542,11 +542,11 @@
               "null"
             ],
             "minimum": 0,
-            "description": "页面显示的“提交”摘要。其统计口径未验证为逐条提交数，不能替代 Source.submissionCount。"
+            "description": "Submitted summary displayed by the page. Its definition has not been verified as an individual submission count, so it cannot replace Source.submissionCount."
           }
         },
         "additionalProperties": true,
-        "description": "历史洛谷快照使用的可选页面摘要；洛谷当前停用，此字段保留兼容性。"
+        "description": "Optional page summaries used by historical Luogu snapshots. Luogu is currently disabled; this field remains for compatibility."
       }
     }
   }
