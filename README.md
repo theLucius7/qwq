@@ -167,4 +167,4 @@ tests/                   # JavaScript 与 Python 测试
 - [牛客公开编程练习](https://ac.nowcoder.com/acm/contest/profile/423062492/practice-coding)：提交结果、题号、名称和提交时间；不读取提交源码。
 - [洛谷公开练习页](https://www.luogu.com.cn/user/571082/practice)：历史快照来源，缺少 AC 时间；当前已停用。
 
-页面头像使用 [theLucius7 的 GitHub 头像](https://github.com/theLucius7.png)。项目数据文件仅保存展示所需的题目与提交元数据，不保存提交源码或登录凭据；QOJ Cookie 仅通过运行环境中的 GitHub Secret 使用。上游数据与题目的权利归各自权利人所有。
+页面头像使用 [QQ 3012967200 的头像](https://q1.qlogo.cn/g?b=qq&nk=3012967200&s=100)，通过腾讯 `q1.qlogo.cn` 的 HTTPS 图片地址直接加载，无需 API Key。项目数据文件仅保存展示所需的题目与提交元数据，不保存提交源码或登录凭据；QOJ Cookie 仅通过运行环境中的 GitHub Secret 使用。上游数据与题目的权利归各自权利人所有。
