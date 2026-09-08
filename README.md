@@ -67,6 +67,16 @@ npm run dev
 
 `npm run build` 不自动获取新数据；`dist/` 是构建产物，不提交到 Git。
 
+`main` 中的快照是离线开发基线；最新自动同步结果保存在长期分支 `data/snapshots`。需要复现线上数据时，可执行以下命令恢复缓存和公开 JSON；它会替换本地快照，先保存未提交的手动导入数据。
+
+```sh
+git clone --single-branch --branch data/snapshots https://github.com/xw7qwq/ojflare.git .snapshots
+rsync -a --delete .snapshots/data/sources/ data/sources/
+cp .snapshots/public/data/dashboard.json public/data/dashboard.json
+```
+
+`.snapshots/` 被 Git 忽略。已有该目录时，在恢复前运行 `git -C .snapshots pull --ff-only`，无需重复克隆；恢复数据供本地验证，不需要提交到源码分支。
+
 ## 配置与数据更新
 
 ### 账号与认证
@@ -160,13 +170,13 @@ flowchart LR
     P --> U[看板与 API 使用方]
 ```
 
-工作流依次执行测试、同步、提交快照与请求状态、构建和发布；数据提交带 `[skip ci]` 标记。
+工作流分别检出 `main` 源码和 `data/snapshots` 数据，恢复最新快照与请求预算后执行测试、同步、写回数据分支、构建和发布。数据分支仅包含 `data/sources/` 与 `public/data/dashboard.json`，保留成功数据及上游失败时的回退状态。源码检出不保存 Git 凭证，自动化不再直接写入 `main`；数据提交不会触发仅监听 `main` 的 push 工作流，因此不使用 `[skip ci]`。
 
 ### 自行部署
 
-1. Fork 或建立包含本项目的仓库，发布分支使用 `main`。
+1. Fork 或建立包含本项目的仓库，源码分支使用 `main`，并保留包含最新快照的 `data/snapshots` 分支。Fork 时不要选择仅复制默认分支；缺少数据分支时，从本仓库推送该分支到自己的远端后再启动部署。
 2. 在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。
-3. 启用 Actions，并允许工作流声明的权限：构建任务写回仓库数据，部署任务写入 Pages 并获取 OIDC 身份令牌。分支保护或组织策略需允许机器人提交快照。
+3. 启用 Actions，并允许工作流声明的权限：构建任务只向 `data/snapshots` 写回数据，部署任务写入 Pages 并获取 OIDC 身份令牌。`main` 可以强制 PR 和必需检查，数据分支允许 `GITHUB_TOKEN` 正常推送且禁止强推和删除，无需绕过主分支规则。
 4. 按需配置 QOJ Secret / Variable，手动运行部署工作流，从 `github-pages` 环境查看部署地址。
 5. 使用自己的域名时，在 **Settings → Pages → Custom domain** 配置并完成 DNS 与 HTTPS 设置；同步修改 `public/CNAME`、页面 canonical、README 与 API 文档中的公开地址。
 
@@ -178,7 +188,7 @@ flowchart LR
 
 ```text
 .github/workflows/
-  pages.yml              # 定时同步、快照提交与 Pages 部署
+  pages.yml              # main 源码 + data/snapshots 定时同步与 Pages 部署
   check.yml              # Pull request 测试与构建
 data/sources/            # 平台成功快照及请求状态；内部缓存
 docs/
