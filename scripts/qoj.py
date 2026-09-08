@@ -50,7 +50,7 @@ class QojClient:
             if pause > 0:
                 time.sleep(pause)
             self.last_request = time.monotonic()
-            request = Request(url, headers={"Cookie": self.cookie, "Accept": "text/html", "Accept-Language": "en", "User-Agent": "Lucius7-AC-Journal/1.0 (+https://github.com/theLucius7/qwq)"})
+            request = Request(url, headers={"Cookie": self.cookie, "Accept": "text/html", "Accept-Language": "en", "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/ojflare)"})
             try:
                 with self.opener.open(request, timeout=40) as response:
                     document = response.read().decode("utf-8")

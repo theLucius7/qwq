@@ -1,22 +1,22 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Lucius7 解题日志 · 公开快照 API",
+    "title": "OJFlare · 公开快照 API",
     "version": "2.2.0",
     "description": "GitHub Pages 上的只读 JSON 文件，schemaVersion=2。当前启用 AtCoder、Codeforces、QOJ 与牛客；洛谷暂时停用，不请求、不导出、不计入统计。比赛仅包含有实际提交的记录。累计解题取 accepted 的题目 ID 与 undatedSolved 的并集，后者当前为空数组。牛客仅收录公开编程练习，每日增量、每七天全量核对，不保证比赛内记录完整；QOJ 用已授权登录态定时同步。公开接口无认证、查询筛选、分页或写入；HTTP 200 不代表各源已更新。本契约描述当前部署，旧快照应使用对应提交的契约。",
     "contact": {
-      "name": "qwq repository",
-      "url": "https://github.com/theLucius7/qwq"
+      "name": "OJFlare repository",
+      "url": "https://github.com/xw7qwq/ojflare"
     }
   },
   "externalDocs": {
     "description": "字段、调用示例、上游获取与失败处理",
-    "url": "https://github.com/theLucius7/qwq/blob/main/docs/API.md"
+    "url": "https://github.com/xw7qwq/ojflare/blob/main/docs/API.md"
   },
   "servers": [
     {
-      "url": "https://thelucius7.github.io/qwq",
-      "description": "GitHub Pages 生产环境"
+      "url": "https://ojflare.lucius7.dev",
+      "description": "OJFlare 生产环境（GitHub Pages）"
     },
     {
       "url": "http://127.0.0.1:4173",

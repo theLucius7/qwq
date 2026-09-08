@@ -1,6 +1,6 @@
-# API 与数据获取说明
+# OJFlare API 与数据获取说明
 
-[返回 README](../README.md) · [OpenAPI 3.1 契约](openapi.json) · [在线快照](https://thelucius7.github.io/qwq/data/dashboard.json)
+[返回 README](../README.md) · [OpenAPI 3.1 契约](openapi.json) · [在线快照](https://ojflare.lucius7.dev/data/dashboard.json)
 
 本文描述 `schemaVersion: 2` 的当前部署，启用 AtCoder、Codeforces、QOJ 与牛客。**洛谷暂时停用，不请求、不导出、不计入统计。比赛数组只包含用户有实际提交的比赛。** v2 的 `undatedSolved` 字段保留兼容性，当前为空数组；通用客户端仍按它与 `accepted` 题目 ID 的并集计算累计解题。实现依据为 [同步器](../scripts/sync.py)、[前端统计模型](../public/model.js) 和 [部署工作流](../.github/workflows/pages.yml)。上游接口说明核对日期：2026-09-08。
 
@@ -19,7 +19,7 @@
 
 ### GET /data/dashboard.json
 
-生产环境基地址为 `https://thelucius7.github.io/qwq`，完整地址为 [dashboard.json](https://thelucius7.github.io/qwq/data/dashboard.json)。本地运行 `npm run dev` 后可访问 [本地 JSON](http://127.0.0.1:4173/data/dashboard.json)。
+生产环境基地址为 `https://ojflare.lucius7.dev`，完整地址为 [dashboard.json](https://ojflare.lucius7.dev/data/dashboard.json)。本地运行 `npm run dev` 后可访问 [本地 JSON](http://127.0.0.1:4173/data/dashboard.json)。
 
 | 项目 | 约定 |
 | --- | --- |
@@ -32,7 +32,7 @@
 | 分页 / 筛选 | 整份快照一次返回；平台、日期、比赛等筛选在客户端完成 |
 | 写入 | 不提供写入、实时查询或远程触发同步的业务接口 |
 
-GitHub Pages 托管静态文件。添加 `?handle=...`、`?date=...` 等参数不会切换用户或筛选记录，也不会触发上游刷新。站点内调用使用 `./data/dashboard.json`，保留项目站点的 `/qwq/` 路径；不要写成域名根目录下的 `/data/dashboard.json`。
+GitHub Pages 托管静态文件。添加 `?handle=...`、`?date=...` 等参数不会切换用户或筛选记录，也不会触发上游刷新。正式站点位于自定义域名根目录，公开路径为 `/data/dashboard.json`。站点内使用相对地址 `./data/dashboard.json`，也兼容本地预览或部署在子路径下的静态站点。
 
 客户端应先检查 HTTP 状态，再解析 JSON。Pages 的 404、网络错误等没有本项目定义的 JSON 错误体。HTTP 200 也可能包含上游失败后保留的旧数据，应检查 `sources`。缓存及响应头由 GitHub Pages 管理，本项目未实现独立的客户端调用配额、强制刷新接口或实时可用性保证；建议复用快照，避免高频轮询。
 
@@ -54,7 +54,7 @@ GitHub Pages 托管静态文件。添加 `?handle=...`、`?date=...` 等参数�
 
 ```sh
 curl --fail --silent --show-error --max-time 45 \
-  'https://thelucius7.github.io/qwq/data/dashboard.json' \
+  'https://ojflare.lucius7.dev/data/dashboard.json' \
   --output dashboard.json
 ```
 
@@ -69,7 +69,7 @@ jq '{generatedAt, sources, solved: ([.accepted[].problemId, .undatedSolved[]] | 
 可在支持 `fetch` 的现代浏览器模块或 Node.js 22+ 的 `.mjs` 文件中运行。需要先从**全历史**找出每道题首次 AC，再按日期筛选，以免把重复 AC 算成当天新增。
 
 ```js
-const response = await fetch('https://thelucius7.github.io/qwq/data/dashboard.json');
+const response = await fetch('https://ojflare.lucius7.dev/data/dashboard.json');
 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 const data = await response.json();
 if (data.schemaVersion !== 2) throw new Error('不支持的数据版本');
@@ -124,7 +124,7 @@ import datetime as dt
 import json
 from urllib.request import urlopen
 
-url = "https://thelucius7.github.io/qwq/data/dashboard.json"
+url = "https://ojflare.lucius7.dev/data/dashboard.json"
 with urlopen(url, timeout=45) as response:
     data = json.load(response)
 if data["schemaVersion"] != 2:

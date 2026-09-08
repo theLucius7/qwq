@@ -108,7 +108,7 @@ def normalize_public_html(document, captured_at):
 def fetch_public():
     """One unauthenticated GET, with no retries, pagination or redirects."""
     request = Request(SOURCE_URL, headers={
-        "User-Agent": "Lucius7-AC-Journal/1.0 (+https://github.com/theLucius7/qwq)",
+        "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/ojflare)",
         "Accept": "text/html",
     })
     try:
