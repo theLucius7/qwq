@@ -1,5 +1,6 @@
 dist/
 node_modules/
+.snapshots/
 __pycache__/
 .DS_Store
 *.tmp
