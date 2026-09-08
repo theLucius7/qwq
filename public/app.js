@@ -125,7 +125,10 @@ function renderDaily() {
     if (problem?.difficulty != null) meta.append(el('span', '', `${event.platform === 'atcoder' ? '估计难度' : 'Rating'} ${problem.difficulty}`));
     meta.append(link('提交 ↗', event.url)); body.append(meta);
     const isFirst = first.get(event.problemId)?.id === event.id;
-    row.append(clock, platformLogo(event.platform), body, el('span', `ac-badge${isFirst ? '' : ' repeat-badge'}`, isFirst ? '✓ 首次 AC' : '↻ 再次 AC'));
+    const badge = el('span', `ac-badge${isFirst ? '' : ' repeat-badge'}`, isFirst ? '✓' : '↻ 再次 AC');
+    badge.title = isFirst ? '首次 AC' : '再次 AC';
+    badge.setAttribute('aria-label', badge.title);
+    row.append(clock, platformLogo(event.platform), body, badge);
     return row;
   }));
 }
