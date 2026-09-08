@@ -1,6 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PLATFORM_NAMES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, streaks, calendarDays, completion, matchesStatus } from '../public/model.js';
+import { PLATFORM_NAMES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from '../public/model.js';
+
+test('cumulative trend carries earlier solves forward, deduplicates repeats and stops before future dates', () => {
+  const event = (id, problemId, time) => ({ id, problemId, epoch: Date.parse(time) / 1000 });
+  const events = [
+    event(5, 'qoj:future', '2026-01-03T16:00:00Z'),
+    event(4, 'qoj:1', '2026-01-01T16:00:00Z'),
+    event(3, 'atcoder:a', '2026-01-01T08:00:00Z'),
+    event(2, 'codeforces:1:A', '2025-12-31T16:00:00Z'),
+    event(1, 'atcoder:a', '2025-12-31T15:59:59Z'),
+  ];
+  assert.deepEqual(cumulativeSeries(events, '2026-01-01', '2026-01-03'), [
+    { day: '2026-01-01', total: 2, added: 1 },
+    { day: '2026-01-02', total: 3, added: 1 },
+    { day: '2026-01-03', total: 3, added: 0 },
+  ]);
+});
+
+test('cumulative trend includes leap days and represents inactive days without inventing solves', () => {
+  assert.deepEqual(cumulativeSeries([], '2024-02-28', '2024-03-01'), [
+    { day: '2024-02-28', total: 0, added: 0 },
+    { day: '2024-02-29', total: 0, added: 0 },
+    { day: '2024-03-01', total: 0, added: 0 },
+  ]);
+  const events = [{ id: 1, problemId: 'atcoder:a', epoch: Date.parse('2023-01-01T00:00:00Z') / 1000 }];
+  assert.equal(cumulativeSeries(events, '2024-02-28', '2024-03-01').at(-1).total, 1);
+});
 
 test('solved problems without timestamps add to cumulative totals without inventing daily events', () => {
   const events = [{ id: 1, platform: 'qoj', problemId: 'qoj:42', epoch: Date.parse('2026-09-08T01:00:00Z') / 1000 }];

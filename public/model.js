@@ -38,6 +38,18 @@ export function dailyCounts(events) {
   return counts;
 }
 
+export function cumulativeSeries(events, start, end) {
+  const counts = dailyCounts([...firstAccepted(events).values()]);
+  let total = [...counts].filter(([day]) => day < start).reduce((sum, [, count]) => sum + count, 0);
+  const points = [];
+  for (let day = start; day <= end; day = shiftDay(day, 1)) {
+    const added = counts.get(day) || 0;
+    total += added;
+    points.push({ day, total, added });
+  }
+  return points;
+}
+
 export function streaks(days, today) {
   const sorted = [...new Set(days)].filter(day => day <= today).sort();
   let longest = 0, run = 0, previous;

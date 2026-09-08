@@ -1,4 +1,5 @@
-import { TIMEZONE, PLATFORM_NAMES, PLATFORM_CODES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, streaks, calendarDays, completion, matchesStatus } from './model.js';
+import { TIMEZONE, PLATFORM_NAMES, PLATFORM_CODES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from './model.js?v=20260908-curve';
+import { mountTrend } from './trend.js?v=20260908-curve';
 
 const $ = selector => document.querySelector(selector);
 const number = new Intl.NumberFormat('en-US');
@@ -8,6 +9,7 @@ let today = dateKey(Date.now() / 1000);
 const state = { platform: 'all', year: Number(today.slice(0, 4)), date: today, mode: 'first', search: '', kind: 'all', status: 'started', page: 1, undatedSearch: '', undatedPage: 1 };
 const PAGE_SIZE = 15;
 let data, problems, contests, events, first, attempted, visibleEvents, visibleFirst, counts, solvedIds, undatedIds;
+let disposeTrend;
 
 function el(tag, className, text) {
   const element = document.createElement(tag);
@@ -35,6 +37,7 @@ function empty(title, description) {
 }
 
 function renderStats() {
+  disposeTrend?.();
   const solved = [...visibleFirst.values()];
   const allSolved = [...solvedIds].map(id => problems.get(id)).filter(inPlatform);
   const noDates = hasOnlyUndatedRecords();
@@ -43,21 +46,40 @@ function renderStats() {
   const activeStreaks = streaks(dailyCounts(visibleEvents).keys(), today);
   const currentCount = counts.get(today) || 0;
   const todayACs = visibleEvents.filter(event => dateKey(event.epoch) === today).length;
-  const available = Object.keys(data.sources).filter(platform => data.sources[platform].lastSuccess);
+  const available = Object.keys(data.sources).filter(platform => inPlatform({ platform }) && data.sources[platform].lastSuccess);
   const platformCounts = available.map(platform => `${PLATFORM_NAMES[platform]} ${fmt(allSolved.filter(problem => problem.platform === platform).length)}`).join(' / ');
   const unavailable = state.platform !== 'all' && !data.sources[state.platform]?.lastSuccess;
-  const specs = [
-    { title: '累计解题', value: allSolved.length, unit: '题', foot: state.platform === 'all' ? platformCounts : `${PLATFORM_NAMES[state.platform]} · 已通过题目去重`, icon: '↗', primary: true },
-    { title: '本月新增', value: noDates ? null : monthCount, unit: '题', foot: noDates ? '来源未提供 AC 时间' : `${today.slice(0, 4)} 年 ${Number(today.slice(5, 7))} 月 · 已知时间的首次 AC`, icon: '▦' },
-    { title: '今日解题', value: noDates ? null : currentCount, unit: '题', foot: noDates ? '来源未提供 AC 时间' : `今天已记录 ${fmt(todayACs)} 次 AC（含重复）`, icon: '✓' },
-    { title: '连续做题', value: noDates ? null : activeStreaks.current, unit: '天', foot: noDates ? '来源未提供 AC 时间' : `最长连续 ${activeStreaks.longest} 天 · 按已知 AC 时间`, icon: 'ϟ' },
-  ];
-  $('#stats').replaceChildren(...specs.map(spec => {
-    const card = el('article', `stat-card${spec.primary ? ' primary' : ''}`);
-    const top = el('div', 'stat-top'); top.append(el('span', '', spec.title), el('span', 'stat-icon', spec.icon));
-    const value = el('div', 'stat-value', unavailable || spec.value === null ? '—' : fmt(spec.value)); value.append(el('small', '', spec.unit));
-    card.append(top, value, el('div', 'stat-foot', unavailable ? '等待首次同步' : spec.foot)); return card;
-  }));
+  const panel = $('#stats');
+  const header = el('div', 'trend-heading');
+  const headline = el('div'); headline.append(el('h3', 'trend-title', '累计解题'));
+  const total = el('div', 'trend-total', unavailable ? '—' : fmt(allSolved.length)); total.append(el('small', '', '题'));
+  headline.append(total, el('p', 'trend-platforms', unavailable ? '等待首次同步' : platformCounts));
+  const summary = el('div', 'trend-summary');
+  if (noDates || unavailable) summary.append(el('span', '', '日期统计暂不可用'));
+  else {
+    const metrics = [['今日', currentCount, `已记录 ${todayACs} 次 AC，包含重复通过`], ['本月', monthCount, `${today.slice(0, 7)} · 首次 AC`], ['连续', activeStreaks.current, `最长连续 ${activeStreaks.longest} 天`]];
+    for (const [label, value, title] of metrics) {
+      const metric = el('span'); metric.title = title;
+      metric.append(document.createTextNode(`${label} `), el('strong', '', fmt(value)), document.createTextNode(label === '连续' ? ' 天' : ' 题'));
+      summary.append(metric);
+    }
+  }
+  header.append(headline, summary);
+  panel.replaceChildren(header);
+  if (noDates || unavailable || !solved.length) {
+    panel.append(empty(noDates ? '已通过题目暂无时间记录' : unavailable ? '等待数据源连接' : '还没有可绘制的 AC 记录', noDates ? '通过题目已计入累计数量；提供 AC 时间后才能展示解题曲线。' : '有首次 AC 记录后，解题曲线会显示在这里。'));
+    return;
+  }
+  const dated = solved.filter(event => dateKey(event.epoch) <= today);
+  const start = dated.length ? shiftDay(dateKey(Math.min(...dated.map(event => event.epoch))), -1) : today;
+  const points = cumulativeSeries(visibleEvents, start, today);
+  const plot = el('div', 'trend-plot');
+  const footer = el('div', 'trend-footer');
+  const readout = el('span', 'trend-readout');
+  const unknown = allSolved.filter(problem => undatedIds.has(problem.id)).length;
+  const note = el('span', 'trend-note', unknown ? `另有 ${fmt(unknown)} 题时间未知，未计入曲线` : '按首次 AC 时间累计 · UTC+8');
+  footer.append(readout, note); panel.append(plot, footer);
+  disposeTrend = mountTrend(plot, readout, points);
 }
 
 function renderProfiles() {
