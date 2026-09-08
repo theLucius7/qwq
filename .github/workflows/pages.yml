@@ -1,0 +1,78 @@
+name: Daily sync and GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # UTC 00:17 = Asia/Taipei 08:17; off the busy top of the hour.
+    - cron: '17 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pages: read
+    outputs:
+      degraded: ${{ steps.sync.outputs.degraded }}
+    steps:
+      - name: Check out source and previous successful snapshots
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Test data and date logic
+        run: npm test
+      - name: Sync public AtCoder and Codeforces records
+        id: sync
+        run: python3 scripts/sync.py
+      - name: Build static site
+        run: npm run build
+      - name: Preserve snapshots for the next sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/sources public/data/dashboard.json
+          if ! git diff --cached --quiet; then
+            git commit -m "data: refresh Lucius7 AC journal [skip ci]"
+            git push
+          fi
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Report stale source after deploying the retained records
+        if: needs.build.outputs.degraded == 'true'
+        run: |
+          echo 'A data source failed. The site was deployed with the last successful snapshot and a visible warning. See the sync step.'
+          exit 1

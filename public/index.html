@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#17191e" />
+    <meta name="description" content="Lucius7 的 AtCoder 与 Codeforces 做题记录：每日 AC、比赛完成进度与题目清单，每天自动更新。" />
+    <title>Lucius7 · 解题日志</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <a href="#main" class="skip-link">跳到做题记录</a>
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="./" aria-label="解题日志首页"><span class="brand-icon">✓</span><span>qwq<span class="brand-caption">AC JOURNAL</span></span></a>
+        <div class="identity"><span class="avatar">L7<span></span></span><h1>Lucius7</h1><p>一步一步，把题解开。</p></div>
+        <nav aria-label="页面导航"><a class="nav-link active" href="#overview"><span>▦</span>做题概览</a><a class="nav-link" href="#daily"><span>◷</span>每日记录</a><a class="nav-link" href="#contests"><span>▤</span>比赛进度</a></nav>
+        <div class="sidebar-bottom"><p class="eyebrow">原始记录</p><a href="https://kenkoooo.com/atcoder/#/table/Lucius7" target="_blank" rel="noopener noreferrer">AtCoder Problems <span>↗</span></a><a href="https://cftracker.netlify.app/contests" target="_blank" rel="noopener noreferrer">CFTracker <span>↗</span></a><a href="https://github.com/theLucius7/qwq" target="_blank" rel="noopener noreferrer">GitHub 仓库 <span>↗</span></a><div class="sidebar-note"><span class="status-dot"></span>每天 08:17 自动同步<br><span class="muted">Asia/Taipei · UTC+8</span></div></div>
+      </aside>
+      <main id="main">
+        <header class="topbar"><span>PERSONAL / PROGRESS</span><span id="sync-label" role="status">正在读取记录…</span></header>
+        <div id="load-error" class="error-banner" role="alert" hidden></div>
+        <div id="dashboard" hidden>
+          <section id="overview" class="overview section-anchor">
+            <div class="section-title"><div><p class="eyebrow">每一道 AC，都算数</p><h2>解题日志<span class="heading-dot">.</span></h2></div><div class="segmented" id="platform-filter" role="group" aria-label="平台筛选"><button type="button" data-platform="all" aria-pressed="true">全部平台</button><button type="button" data-platform="atcoder" aria-pressed="false">AtCoder</button><button type="button" data-platform="codeforces" aria-pressed="false">Codeforces</button></div></div>
+            <div id="source-alerts" aria-live="polite"></div>
+            <div id="stats" class="stats-grid"></div>
+            <div class="profiles" id="profiles"></div>
+            <section class="panel activity-panel" aria-labelledby="activity-title">
+              <div class="panel-heading"><div><h3 id="activity-title">AC 足迹</h3><p id="activity-summary"></p></div><label class="select-wrap">年份 <select id="year-select" aria-label="热力图年份"></select></label></div>
+              <div class="heatmap-scroll"><div id="heatmap" class="heatmap" aria-label="每日首次 AC 热力图"></div></div>
+              <div class="heatmap-footer"><span>点击日期，查看当天解开的题目</span><div class="heatmap-legend"><span>少</span><i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i><span>多</span></div></div>
+            </section>
+          </section>
+          <section id="daily" class="section-anchor">
+            <div class="section-title compact"><div><p class="eyebrow">DAILY LOG</p><h2>每日记录</h2></div><div class="date-controls"><button type="button" id="prev-day" class="icon-button" aria-label="前一天">←</button><input type="date" id="date-select" aria-label="查看日期" /><button type="button" id="next-day" class="icon-button" aria-label="后一天">→</button><button type="button" id="today-button" class="text-button">今天</button></div></div>
+            <div class="panel daily-panel"><div class="panel-heading"><div><h3 id="daily-title"></h3><p id="daily-summary"></p></div><div class="segmented small" id="activity-filter" role="group" aria-label="记录类型"><button type="button" data-mode="first" aria-pressed="true">首次 AC</button><button type="button" data-mode="all" aria-pressed="false">全部 AC</button></div></div><div id="daily-list"></div></div>
+          </section>
+          <section id="contests" class="section-anchor">
+            <div class="section-title compact"><div><p class="eyebrow">CONTEST TRACKER</p><h2>比赛进度</h2></div><span class="progress-legend"><i class="solved-key"></i>已 AC <i class="attempted-key"></i>尝试过 <i class="unseen-key"></i>未完成</span></div>
+            <div class="panel contests-panel"><div class="contest-toolbar"><label class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="contest-search" placeholder="搜索比赛 / 题目" aria-label="搜索比赛或题目" /></label><div class="contest-selects"><select id="contest-kind" aria-label="比赛类别"><option value="all">所有类别</option></select><select id="contest-status" aria-label="比赛完成状态"><option value="started">有提交记录</option><option value="all">全部比赛</option><option value="completed">已完成</option><option value="unfinished">进行中</option><option value="untouched">未开始</option></select></div></div><div class="table-scroll"><table><thead><tr><th scope="col">比赛</th><th scope="col">题目完成情况</th><th scope="col" class="progress-col">进度</th></tr></thead><tbody id="contest-rows"></tbody></table></div><div class="pagination"><span id="contest-count"></span><div><button type="button" id="prev-page" class="text-button">← 上一页</button><span id="page-label"></span><button type="button" id="next-page" class="text-button">下一页 →</button></div></div></div>
+          </section>
+          <footer><p>首次 AC 按平台 + 题目去重；全部 AC 包含重复通过。日期按 UTC+8 归档。</p><p>AtCoder Problems · Codeforces API <span> / </span><a href="https://github.com/theLucius7/qwq/actions" target="_blank" rel="noopener noreferrer">同步状态 ↗</a></p></footer>
+        </div>
+        <div id="loading" class="loading-state"><span class="loader"></span><p>正在整理 Lucius7 的 AC 记录…</p></div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { dateKey, shiftDay, firstAccepted, dailyCounts, streaks, calendarDays, completion, matchesStatus } from '../public/model.js';
+
+test('AC dates use UTC+8 at midnight, independent of machine timezone', () => {
+  assert.equal(dateKey(Date.parse('2026-09-07T15:59:59Z') / 1000), '2026-09-07');
+  assert.equal(dateKey(Date.parse('2026-09-07T16:00:00Z') / 1000), '2026-09-08');
+  assert.equal(shiftDay('2024-03-01', -1), '2024-02-29');
+  assert.equal(shiftDay('2025-01-01', -1), '2024-12-31');
+});
+
+test('first AC deduplicates by platform-specific problem identity, not title or submission id', () => {
+  const events = [
+    { id: 8, problemId: 'atcoder:abc001_a', epoch: 1720000000 },
+    { id: 2, problemId: 'atcoder:abc001_a', epoch: 1710000000 },
+    { id: 2, problemId: 'codeforces:1:A', epoch: 1710000000 },
+    { id: 1, problemId: 'atcoder:abc001_a', epoch: 1710000000 },
+  ];
+  const first = firstAccepted(events);
+  assert.equal(first.size, 2);
+  assert.equal(first.get('atcoder:abc001_a').id, 1);
+  assert.equal([...dailyCounts([...first.values()]).values()].reduce((a, b) => a + b), 2);
+  assert.equal([...dailyCounts(events).values()].reduce((a, b) => a + b), 4);
+});
+
+test('streak permits today to be unfinished, excludes future days, and handles year boundaries', () => {
+  const dates = ['2025-12-30', '2025-12-31', '2026-01-01', '2026-01-04', '2026-01-04', '2026-01-08'];
+  assert.deepEqual(streaks(dates, '2026-01-02'), { current: 3, longest: 3 });
+  assert.deepEqual(streaks(dates, '2026-01-06'), { current: 0, longest: 3 });
+  assert.deepEqual(streaks([], '2026-01-06'), { current: 0, longest: 0 });
+});
+
+test('calendar includes leap days, uses Monday-first rows, and preserves end of year', () => {
+  const leap = calendarDays(2024);
+  assert.equal(leap.length, 366);
+  assert.deepEqual(leap[0], { day: '2024-01-01', week: 0, weekday: 0 });
+  assert.equal(leap.at(-1).day, '2024-12-31');
+  const year = calendarDays(2026);
+  assert.equal(year.length, 365);
+  assert.equal(year[0].weekday, 3);
+  assert.equal(calendarDays(2012).at(-1).week, 53);
+});
+
+test('unknown Gym denominator cannot imply full contest completion', () => {
+  const first = new Map([['codeforces:100001:A', {}]]);
+  const attempted = new Set(['codeforces:100001:A']);
+  const partial = completion({ problems: ['codeforces:100001:A'], catalogComplete: false }, first, attempted);
+  assert.deepEqual(partial, { solved: 1, total: 1, started: true, complete: false });
+  assert.equal(matchesStatus(partial, 'completed'), false);
+  assert.equal(matchesStatus(partial, 'unfinished'), true);
+  const complete = completion({ problems: ['codeforces:100001:A'], catalogComplete: true }, first, attempted);
+  assert.equal(complete.complete, true);
+  const untouched = completion({ problems: ['codeforces:100001:B'], catalogComplete: true }, first, attempted);
+  assert.equal(matchesStatus(untouched, 'untouched'), true);
+});
+
+test('shared AtCoder tasks show AC without inventing a contest submission', () => {
+  const first = new Map([['atcoder:abc001_a', {}]]);
+  const attempted = new Set(['atcoder:abc001_a']);
+  const reused = completion({ problems: ['atcoder:abc001_a'], catalogComplete: true, hasSubmissions: false }, first, attempted);
+  assert.equal(reused.solved, 1);
+  assert.equal(matchesStatus(reused, 'started'), false);
+  const original = completion({ problems: ['atcoder:abc001_a'], catalogComplete: true, hasSubmissions: true }, first, attempted);
+  assert.equal(matchesStatus(original, 'started'), true);
+});
