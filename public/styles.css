@@ -56,3 +56,27 @@ summary:focus-visible{outline:3px solid #6eab34;outline-offset:-4px}
 @media(max-width:680px){.trend-panel{padding:20px 16px 16px}.trend-heading{align-items:flex-start;flex-direction:column;gap:16px}.trend-total{font-size:38px}.trend-summary{gap:12px 18px;font-size:13px}.trend-summary strong{font-size:16px}.trend-plot{margin-top:14px}.trend-footer{margin-top:10px}}
 
 .platform-logo.nowcoder,.platform-tag.nowcoder{color:#796118;background:#fff6ce}
+
+/* Contest rows use aligned problem columns, including split A1 / A2 tasks. */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.contest-matrix{min-width:calc(204px + var(--task-columns,8)*116px);table-layout:fixed;border-collapse:separate;border-spacing:0}
+.contest-matrix thead th{width:auto;padding:12px 10px;text-align:center;background:#f3f6f3;color:#626f62;font:600 13px 'Space Grotesk',sans-serif;border-bottom:1px solid #dce5d9;border-right:1px solid #e4e9e2}
+.contest-matrix .matrix-contest-heading{width:204px;text-align:left;padding-left:16px;position:sticky;left:0;z-index:2}
+.contest-matrix .matrix-contest{width:204px;position:sticky;left:0;z-index:1;background:#fff;text-align:left;vertical-align:top;padding:14px 16px;border-right:1px solid #dce5d9;border-bottom:1px solid #e4e9e2;font-weight:400}
+.matrix-contest .contest-name{font-size:14px;font-weight:600;line-height:1.45;overflow-wrap:anywhere}
+.matrix-contest .contest-meta{font-size:11px;line-height:1.7;margin-top:7px}
+.matrix-contest-detail{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 10px;margin-top:5px;font-size:11px;color:#879183;font-variant-numeric:tabular-nums}
+.matrix-completion{color:#65715f}.matrix-completion.complete{color:#438324;font-weight:600}
+.matrix-catalog-note{display:block;font-size:11px;color:#9c803f;margin-top:5px}
+.contest-matrix .matrix-cell{padding:0;vertical-align:top;border-right:1px solid #e4e9e2;border-bottom:1px solid #e4e9e2;background:white}
+.matrix-task{display:flex;flex-direction:column;justify-content:space-between;gap:9px;min-height:82px;padding:12px 10px;line-height:1.45;color:#4f594e;overflow-wrap:anywhere}
+.matrix-task+.matrix-task{border-top:1px solid #dce5d9}
+.matrix-task-name{font-size:14px}.matrix-task-info{display:flex;align-items:center;justify-content:space-between;min-height:16px;font-size:11px;font-variant-numeric:tabular-nums;color:#7c8874}
+.matrix-check{margin-left:auto;font-size:14px;line-height:1;font-weight:700;color:#538438}
+.matrix-cell.solved,.matrix-task.solved{background:#e2f2d9}.matrix-task.solved{color:#3c6729}
+.matrix-cell.attempted,.matrix-task.attempted{background:#fff3cd}.matrix-task.attempted{color:#806426}
+.matrix-task:hover .matrix-task-name{text-decoration:underline;text-underline-offset:3px}.matrix-task:hover{filter:brightness(.97);color:inherit}
+.matrix-task:focus-visible{position:relative;z-index:3;outline-offset:-3px}
+.matrix-gap{display:block;padding:24px 10px;text-align:center;color:#d5dcd1;font-size:14px}
+.contest-matrix tbody tr:last-child td,.contest-matrix tbody tr:last-child th{border-bottom:0}
+@media(max-width:680px){.contest-matrix{min-width:calc(152px + var(--task-columns,8)*116px)}.contest-matrix .matrix-contest-heading,.contest-matrix .matrix-contest{width:152px;padding-left:12px;padding-right:12px}.matrix-contest .contest-name{font-size:14px}.matrix-task{padding:11px 9px}.matrix-contest-detail{display:block}.matrix-completion{display:block;margin-top:3px}}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PLATFORM_NAMES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from '../public/model.js';
+import { PLATFORM_NAMES, activeDashboard, contestMatrix, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from '../public/model.js';
 
 test('cumulative trend carries earlier solves forward, deduplicates repeats and stops before future dates', () => {
   const event = (id, problemId, time) => ({ id, problemId, epoch: Date.parse(time) / 1000 });
@@ -102,16 +102,57 @@ test('shared AtCoder tasks show AC without inventing a contest submission', () =
   assert.equal(matchesStatus(original, 'started'), true);
 });
 
-test('QOJ excludes unsubmitted contests even when All contests is selected', () => {
+test('every platform excludes contests without explicit submission evidence', () => {
   assert.equal(PLATFORM_NAMES.qoj, 'QOJ');
   const contests = [
     { id: 'qoj:1', platform: 'qoj', hasSubmissions: true },
     { id: 'qoj:2', platform: 'qoj', hasSubmissions: false },
     { id: 'qoj:3', platform: 'qoj' },
     { id: 'atcoder:abc001', platform: 'atcoder', hasSubmissions: false },
+    { id: 'atcoder:abc002', platform: 'atcoder', hasSubmissions: true },
+    { id: 'codeforces:1', platform: 'codeforces', hasSubmissions: true },
+    { id: 'codeforces:2', platform: 'codeforces', hasSubmissions: 1 },
+    { id: 'codeforces:3', platform: 'codeforces', hasSubmissions: 'true' },
   ];
-  assert.deepEqual(contests.filter(includedContest).map(contest => contest.id), ['qoj:1', 'atcoder:abc001']);
+  assert.deepEqual(contests.filter(includedContest).map(contest => contest.id), ['qoj:1', 'atcoder:abc002', 'codeforces:1']);
   const first = firstAccepted([{ problemId: 'qoj:1', id: 1, epoch: 100 }, { problemId: 'qoj:1', id: 2, epoch: 200 }, { problemId: 'codeforces:1:A', id: 1, epoch: 100 }]);
   assert.equal(first.size, 2);
   assert.equal(first.get('qoj:1').epoch, 100);
+});
+
+test('an older cached payload cannot restore disabled Luogu or unsubmitted contests', () => {
+  const original = {
+    sources: { atcoder: {}, luogu: {}, nowcoder: {} },
+    problems: [{ id: 'atcoder:task', platform: 'atcoder' }, { id: 'luogu:P1', platform: 'luogu' }, { id: 'nowcoder:1', platform: 'nowcoder' }],
+    accepted: [{ id: 1, platform: 'atcoder', problemId: 'atcoder:task', epoch: 100 }],
+    attempted: ['atcoder:task', 'luogu:P1', 'nowcoder:1'], undatedSolved: ['luogu:P1'],
+    contests: [{ id: 'atcoder:1', platform: 'atcoder', hasSubmissions: true }, { id: 'atcoder:2', platform: 'atcoder', hasSubmissions: false }],
+  };
+  const data = activeDashboard(original);
+  assert.deepEqual(Object.keys(data.sources), ['atcoder', 'nowcoder']);
+  assert.deepEqual(data.problems.map(p => p.id), ['atcoder:task', 'nowcoder:1']);
+  assert.deepEqual(data.attempted, ['atcoder:task', 'nowcoder:1']);
+  assert.deepEqual(data.undatedSolved, []);
+  assert.equal(data.contests.length, 1);
+  assert.equal(solvedProblemIds(data.accepted, data.undatedSolved).size, 1);
+  assert.equal(original.problems.length, 3);
+});
+
+test('matrix aligns contest-local labels, split problems, gaps and AtCoder H / Ex', () => {
+  const problems = new Map([
+    ['atcoder:shared', { index: 'D' }], ['atcoder:ex', { index: 'Ex' }],
+    ['codeforces:a1', { index: 'A1' }], ['codeforces:a2', { index: 'A2' }], ['codeforces:h', { index: 'H' }],
+  ]);
+  const contests = [
+    { id: 'atcoder:1', problems: ['atcoder:shared', 'atcoder:ex'], problemIndices: { 'atcoder:shared': 'A' } },
+    { id: 'codeforces:1', problems: ['codeforces:a1', 'codeforces:a2', 'codeforces:h'], catalogComplete: false },
+  ];
+  const matrix = contestMatrix(contests, problems);
+  assert.deepEqual(matrix.columns, [{ key: 'A', label: 'A' }, { key: 'H', label: 'H / Ex' }]);
+  assert.deepEqual(matrix.rows[0].cells.get('A'), [{ id: 'atcoder:shared', index: 'A' }]);
+  assert.deepEqual(matrix.rows[1].cells.get('A').map(p => p.index), ['A1', 'A2']);
+  assert.equal(matrix.rows[0].cells.get('H')[0].index, 'Ex');
+  assert.equal(matrix.rows[0].cells.has('D'), false);
+  assert.equal(matrix.rows[1].contest.catalogComplete, false);
+  assert.equal(matrix.rows.flatMap(row => [...row.cells.values()].flat()).length, 5);
 });

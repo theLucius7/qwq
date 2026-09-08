@@ -1,12 +1,12 @@
-import { TIMEZONE, PLATFORM_NAMES, PLATFORM_CODES, includedContest, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from './model.js?v=20260908-nowcoder';
-import { mountTrend } from './trend.js?v=20260908-nowcoder';
+import { TIMEZONE, PLATFORM_NAMES, PLATFORM_CODES, activeDashboard, contestMatrix, solvedProblemIds, dateKey, shiftDay, firstAccepted, dailyCounts, cumulativeSeries, streaks, calendarDays, completion, matchesStatus } from './model.js?v=20260908-matrix';
+import { mountTrend } from './trend.js?v=20260908-matrix';
 
 const $ = selector => document.querySelector(selector);
 const number = new Intl.NumberFormat('en-US');
 const time = new Intl.DateTimeFormat('zh-CN', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false });
 const stamp = new Intl.DateTimeFormat('zh-CN', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 let today = dateKey(Date.now() / 1000);
-const state = { platform: 'all', year: Number(today.slice(0, 4)), date: today, mode: 'first', search: '', kind: 'all', status: 'started', page: 1, undatedSearch: '', undatedPage: 1 };
+const state = { platform: 'all', year: Number(today.slice(0, 4)), date: today, mode: 'first', search: '', kind: 'all', status: 'all', page: 1 };
 const PAGE_SIZE = 15;
 let data, problems, contests, events, first, attempted, visibleEvents, visibleFirst, counts, solvedIds, undatedIds;
 let disposeTrend;
@@ -170,39 +170,10 @@ function renderDaily() {
   }));
 }
 
-function renderUndated() {
-  const all = [...undatedIds].map(id => problems.get(id)).filter(inPlatform);
-  $('#undated').hidden = all.length === 0;
-  if (!all.length) return;
-  if (hasOnlyUndatedRecords()) $('#undated-details').open = true;
-  $('#undated-heading').textContent = `已通过题目 · ${fmt(all.length)} 题`;
-  const query = state.undatedSearch.toLocaleLowerCase().trim();
-  const filtered = all.filter(problem => !query || `${problem.id} ${problem.name} ${problem.difficultyLabel || ''}`.toLocaleLowerCase().includes(query));
-  const size = 25;
-  const pages = Math.max(1, Math.ceil(filtered.length / size));
-  state.undatedPage = Math.min(state.undatedPage, pages);
-  const rows = filtered.slice((state.undatedPage - 1) * size, state.undatedPage * size).map(problem => {
-    const row = el('article', 'undated-row');
-    const body = el('div'); body.append(link(problem.name, problem.url, 'problem-name'));
-    const meta = el('div', 'problem-meta');
-    meta.append(el('span', 'problem-index', problem.index), el('span', '', PLATFORM_NAMES[problem.platform]));
-    if (problem.difficultyLabel) meta.append(el('span', '', problem.difficultyLabel));
-    meta.append(el('span', '', 'AC 时间未知')); body.append(meta);
-    const badge = el('span', 'ac-badge', '✓'); badge.title = '已通过，首次 AC 时间未知'; badge.setAttribute('aria-label', badge.title);
-    row.append(platformLogo(problem.platform), body, badge); return row;
-  });
-  $('#undated-list').replaceChildren(...(rows.length ? rows : [empty('没有符合条件的题目', '试试题号、名称或难度。')]));
-  $('#undated-count').textContent = `共 ${fmt(filtered.length)} 题`;
-  $('#undated-page').textContent = `${state.undatedPage} / ${pages}`;
-  $('#undated-prev').disabled = state.undatedPage === 1;
-  $('#undated-next').disabled = state.undatedPage === pages;
-}
-
 function renderContests() {
   const practiceOnly = data.sources[state.platform]?.dataScope === 'practice_coding';
   $('#contests').hidden = hasOnlyUndatedRecords() || practiceOnly;
   if (hasOnlyUndatedRecords() || practiceOnly) return;
-  $('#contest-scope-note').hidden = state.platform !== 'qoj';
   const query = state.search.toLocaleLowerCase().trim();
   const filtered = contests.filter(contest => {
     if (!inPlatform(contest) || (state.kind !== 'all' && contest.kind !== state.kind)) return false;
@@ -212,30 +183,48 @@ function renderContests() {
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   state.page = Math.min(state.page, pages);
   const shown = filtered.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
-  const rows = shown.map(contest => {
+  const matrix = contestMatrix(shown, problems);
+  const heading = el('th', 'matrix-contest-heading', '比赛'); heading.scope = 'col';
+  $('#contest-columns').replaceChildren(heading, ...matrix.columns.map(column => {
+    const cell = el('th', '', column.label); cell.scope = 'col'; return cell;
+  }));
+  $('#contest-matrix').style.setProperty('--task-columns', Math.max(1, matrix.columns.length));
+  const rows = matrix.rows.map(({ contest, cells }) => {
     const row = el('tr');
-    const name = el('td'); name.append(link(contest.name, contest.url, 'contest-name'));
-    const meta = el('div', 'contest-meta'); meta.append(el('span', `platform-tag ${contest.platform}`, PLATFORM_NAMES[contest.platform]), document.createTextNode(`${contest.kind}${contest.startEpoch ? ` · ${dateKey(contest.startEpoch)}` : ''}`));
-    if (!contest.catalogComplete) meta.append(document.createTextNode(' · 题目目录不完整'));
-    name.append(meta);
-    const cells = el('td'); const group = el('div', 'problem-cells');
-    for (const id of contest.problems) {
-      const problem = problems.get(id); if (!problem) continue;
-      const accepted = first.get(id);
-      const status = accepted ? 'solved' : attempted.has(id) ? 'attempted' : 'unseen';
-      const cell = link(contest.problemIndices?.[id] || problem.index, problem.url, `problem-cell ${status}`);
-      const description = `${problem.name} · ${accepted ? `首次 AC ${stamp.format(new Date(accepted.epoch * 1000))}` : status === 'attempted' ? '已尝试，尚未 AC' : '尚未完成'}${problem.difficulty != null ? ` · 难度 ${problem.difficulty}` : ''}`;
-      cell.title = description; cell.setAttribute('aria-label', description); group.append(cell);
+    const name = el('th', 'matrix-contest'); name.scope = 'row';
+    name.append(link(contest.name, contest.url, 'contest-name'));
+    const meta = el('div', 'contest-meta');
+    meta.append(el('span', `platform-tag ${contest.platform}`, PLATFORM_NAMES[contest.platform]), document.createTextNode(contest.kind));
+    const detail = el('div', 'matrix-contest-detail');
+    if (contest.startEpoch) detail.append(el('span', '', dateKey(contest.startEpoch)));
+    detail.append(el('span', `matrix-completion${contest.progress.complete ? ' complete' : ''}`, `${contest.progress.solved} / ${contest.catalogComplete ? contest.progress.total : '?'} 题`));
+    name.append(meta, detail);
+    if (!contest.catalogComplete) name.append(el('span', 'matrix-catalog-note', '题目目录不完整'));
+    row.append(name);
+    for (const column of matrix.columns) {
+      const cell = el('td', 'matrix-cell');
+      const entries = cells.get(column.key) || [];
+      if (!entries.length) cell.append(el('span', 'matrix-gap', '—'));
+      for (const { id, index } of entries) {
+        const problem = problems.get(id);
+        const accepted = first.get(id);
+        const status = accepted ? 'solved' : attempted.has(id) ? 'attempted' : 'unseen';
+        if (entries.length === 1) cell.classList.add(status);
+        const task = link('', problem.url, `matrix-task ${status}`);
+        const description = `${index}. ${problem.name} · ${accepted ? `首次 AC ${stamp.format(new Date(accepted.epoch * 1000))}` : status === 'attempted' ? '已尝试，尚未 AC' : '尚未完成'}${problem.difficulty != null ? ` · 难度 ${problem.difficulty}` : ''}`;
+        task.title = description; task.setAttribute('aria-label', description);
+        task.append(el('span', 'matrix-task-name', `${index}. ${problem.name}`));
+        const info = el('span', 'matrix-task-info');
+        if (problem.difficulty != null) info.append(el('span', '', `${problem.difficulty}`));
+        if (accepted) { const check = el('span', 'matrix-check', '✓'); check.setAttribute('aria-hidden', 'true'); info.append(check); }
+        task.append(info); cell.append(task);
+      }
+      row.append(cell);
     }
-    cells.append(group);
-    const progress = el('td', `contest-progress${contest.progress.complete ? ' completed' : ''}`, `${contest.progress.solved} / ${contest.catalogComplete ? contest.progress.total : '?'}`);
-    if (contest.catalogComplete) {
-      const track = el('div', 'progress-track'); const bar = el('span'); bar.style.width = `${contest.progress.total ? contest.progress.solved / contest.progress.total * 100 : 0}%`; track.append(bar); progress.append(track);
-    }
-    row.append(name, cells, progress); return row;
+    return row;
   });
   if (!rows.length) {
-    const row = el('tr'); const cell = el('td'); cell.colSpan = 3; cell.append(empty('没有符合条件的比赛', '试试其他平台、类别，或清空搜索内容。')); row.append(cell); rows.push(row);
+    const row = el('tr'); const cell = el('td'); cell.colSpan = matrix.columns.length + 1; cell.append(empty('没有符合条件的比赛', '试试其他平台、类别，或清空搜索内容。')); row.append(cell); rows.push(row);
   }
   $('#contest-rows').replaceChildren(...rows);
   $('#contest-count').textContent = state.platform === 'qoj' && !data.sources.qoj?.lastSuccess ? '等待 QOJ 首次同步' : `共 ${fmt(filtered.length)} 场比赛${filtered.length ? ` · 显示 ${(state.page - 1) * PAGE_SIZE + 1}–${Math.min(state.page * PAGE_SIZE, filtered.length)}` : ''}`;
@@ -247,7 +236,7 @@ function renderPlatform() {
   visibleEvents = events.filter(inPlatform);
   visibleFirst = new Map([...first].filter(([, event]) => inPlatform(event)));
   counts = dailyCounts([...visibleFirst.values()]);
-  renderStats(); renderProfiles(); renderHeatmap(); renderDaily(); renderUndated();
+  renderStats(); renderProfiles(); renderHeatmap(); renderDaily();
   const kinds = [...new Set(contests.filter(inPlatform).map(contest => contest.kind))].sort();
   if (!kinds.includes(state.kind)) state.kind = 'all';
   $('#contest-kind').replaceChildren(new Option('所有类别', 'all'), ...kinds.map(kind => new Option(kind, kind)));
@@ -267,7 +256,7 @@ function chooseDay(day) {
 function bindEvents() {
   $('#platform-filter').addEventListener('click', event => {
     const button = event.target.closest('button'); if (!button) return;
-    state.platform = button.dataset.platform; state.page = 1; state.undatedPage = 1;
+    state.platform = button.dataset.platform; state.page = 1;
     $('#platform-filter').querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
     renderPlatform();
   });
@@ -287,9 +276,6 @@ function bindEvents() {
   for (const name of ['kind', 'status']) $('#contest-' + name).addEventListener('change', event => { state[name] = event.target.value; state.page = 1; renderContests(); });
   $('#prev-page').addEventListener('click', () => { state.page--; renderContests(); });
   $('#next-page').addEventListener('click', () => { state.page++; renderContests(); });
-  $('#undated-search').addEventListener('input', event => { state.undatedSearch = event.target.value; state.undatedPage = 1; renderUndated(); });
-  $('#undated-prev').addEventListener('click', () => { state.undatedPage--; renderUndated(); });
-  $('#undated-next').addEventListener('click', () => { state.undatedPage++; renderUndated(); });
   const refreshDate = () => {
     const currentDay = dateKey(Date.now() / 1000);
     if (currentDay === today) return;
@@ -315,11 +301,12 @@ async function start() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     data = await response.json();
     if (data.schemaVersion !== 2 || !data.problems || !data.sources || !Array.isArray(data.undatedSolved)) throw new Error('不支持的数据格式');
+    data = activeDashboard(data);
     problems = new Map(data.problems.map(problem => [problem.id, problem]));
     events = data.accepted; first = firstAccepted(events); attempted = new Set(data.attempted);
     solvedIds = solvedProblemIds(events, data.undatedSolved);
     undatedIds = new Set(data.undatedSolved.filter(id => !first.has(id)));
-    contests = data.contests.filter(includedContest).map(contest => ({ ...contest, progress: completion(contest, first, attempted) })).sort((a, b) => (b.startEpoch || b.lastSubmissionEpoch || 0) - (a.startEpoch || a.lastSubmissionEpoch || 0) || b.id.localeCompare(a.id, undefined, { numeric: true }));
+    contests = data.contests.map(contest => ({ ...contest, progress: completion(contest, first, attempted) })).sort((a, b) => (b.startEpoch || b.lastSubmissionEpoch || 0) - (a.startEpoch || a.lastSubmissionEpoch || 0) || b.id.localeCompare(a.id, undefined, { numeric: true }));
     const years = new Set([state.year, ...events.map(event => Number(dateKey(event.epoch).slice(0, 4)))]);
     $('#year-select').replaceChildren(...[...years].sort((a, b) => b - a).map(year => new Option(String(year), String(year))));
     const latest = events.length ? events.reduce((a, b) => a.epoch > b.epoch ? a : b) : null;

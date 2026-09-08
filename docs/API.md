@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [OpenAPI 3.1 契约](openapi.json) · [在线快照](https://thelucius7.github.io/qwq/data/dashboard.json)
 
-本文描述 `schemaVersion: 2`，覆盖 AtCoder、Codeforces、QOJ、洛谷与牛客。v2 新增无 AC 时间的已通过题目，并区分已获取的逐条提交历史与无时间的通过题目快照；累计解题不能再仅使用 `accepted`。实现依据为 [同步器](../scripts/sync.py)、[前端统计模型](../public/model.js) 和 [部署工作流](../.github/workflows/pages.yml)。上游接口说明核对日期：2026-09-08。
+本文描述 `schemaVersion: 2` 的当前部署，启用 AtCoder、Codeforces、QOJ 与牛客。**洛谷暂时停用，不请求、不导出、不计入统计。比赛数组只包含用户有实际提交的比赛。** v2 的 `undatedSolved` 字段保留兼容性，当前为空数组；通用客户端仍按它与 `accepted` 题目 ID 的并集计算累计解题。实现依据为 [同步器](../scripts/sync.py)、[前端统计模型](../public/model.js) 和 [部署工作流](../.github/workflows/pages.yml)。上游接口说明核对日期：2026-09-08。
 
 ## 目录
 
@@ -27,7 +27,7 @@
 | 认证 | 无需登录、API Key、Token 或 Cookie |
 | 请求参数 / 请求体 | 无 |
 | 成功响应 | HTTP `200`，UTF-8 JSON，结构为 `Dashboard` |
-| 数据范围 | Lucius7 的五平台题目与来源状态；AtCoder / Codeforces / QOJ 的通过提交及目录；牛客公开编程练习提交；洛谷的无时间通过题目 |
+| 数据范围 | Lucius7 的四个已启用平台的题目与来源状态；AtCoder / Codeforces / QOJ 的通过提交及已提交比赛；牛客公开编程练习提交 |
 | 更新 | 每日同步、推送 `main` 或手动触发后，经构建与部署发布；可发布保留的降级数据 |
 | 分页 / 筛选 | 整份快照一次返回；平台、日期、比赛等筛选在客户端完成 |
 | 写入 | 不提供写入、实时查询或远程触发同步的业务接口 |
@@ -42,8 +42,8 @@ GitHub Pages 托管静态文件。添加 `?handle=...`、`?date=...` 等参数�
 | --- | --- |
 | 读取当前部署数据 | 请求上面的 Pages JSON 地址 |
 | 固定到某次仓库版本 | 从该 commit 读取 `public/data/dashboard.json`，如 `git show <commit>:public/data/dashboard.json` |
-| 本地联网更新 | `npm run sync` 更新 AtCoder / Codeforces / 已配置 QOJ，在每日预算内更新洛谷公开页和牛客公开编程练习；不直接发布 |
-| 本地离线重建 | 执行 `python3 scripts/sync.py --offline`；需要已有 `data/sources/*.json` |
+| 本地联网更新 | `npm run sync` 更新 AtCoder / Codeforces / 已配置 QOJ，在每日预算内更新牛客公开编程练习；不直接发布 |
+| 本地离线重建 | 执行 `python3 scripts/sync.py --offline`；需要已启用平台的 `data/sources/*.json`，不读取洛谷快照 |
 | 刷新线上数据 | 在 GitHub Actions 运行 **Daily sync and GitHub Pages**，等待部署完成 |
 
 仓库中的数据提交与 Pages 部署有时间差；需要精确复现时，记录 commit 和各平台的 `lastSuccess`。`data/sources/*.json` 是内部成功快照，其结构不属于本公开接口契约。
@@ -164,11 +164,11 @@ for platform, source in data["sources"].items():
 | `handle` | string | 当前为 `Lucius7` |
 | `timezone` | string | 当前为 `Asia/Taipei` |
 | `generatedAt` | string · date-time | 汇总 JSON 生成时间，不等于各数据源刷新时间 |
-| `sources` | object | 包含 `atcoder`、`codeforces`、`qoj`、`luogu`、`nowcoder`，值为 `Source`；尚未连接的来源也保留状态 |
+| `sources` | object | 当前包含 `atcoder`、`codeforces`、`qoj`、`nowcoder`，值为 `Source`；启用但尚未连接的来源也保留状态，停用的洛谷不输出 |
 | `problems` | `Problem[]` | 收录题库，包含大量未尝试题目；长度不是解题数 |
-| `contests` | `Contest[]` | 收录比赛，包含未参加的常规比赛；题目列表非空 |
+| `contests` | `Contest[]` | 仅用户实际有提交的 AtCoder / Codeforces / QOJ 比赛；每项 `hasSubmissions` 恒为 true，题目列表非空 |
 | `accepted` | `AcceptedSubmission[]` | 已获得真实时间的通过提交，含重复通过；当前来自 AtCoder / Codeforces / QOJ / 牛客公开编程练习，不包含洛谷 |
-| `undatedSolved` | `string[]` | 唯一的已通过题目 ID，但首次 AC 时间未知；引用题库，并与 `accepted` 的题目集合不相交 |
+| `undatedSolved` | `string[]` | 无首次 AC 时间的已通过题目 ID；当前为 `[]`，字段保留兼容性。非空时须引用题库，并与 `accepted` 的题目集合不相交 |
 | `attempted` | `string[]` | 去重后的已尝试题目 ID，包含已 AC 的题目 |
 
 ### Source
@@ -178,18 +178,18 @@ for platform, source in data["sources"].items():
 | `lastSuccess` | string · date-time 或 null | 已获取来源的最后成功时间；手动导入使用采集时间，尚未连接时为 null |
 | `profile` | `Profile` | 用户 Rating 摘要 |
 | `warnings` | `string[]` | 可选数据缺失或陈旧提示；成功时也可能非空 |
-| `submissionCount` | integer 或 null | 提交历史去重后的总提交数，含非 AC / 重复；洛谷与未连接来源为 null，不能当作 0 |
+| `submissionCount` | integer 或 null | 提交历史去重后的总提交数，含非 AC / 重复；未连接来源为 null，不能当作 0 |
 | `error` | string 或 null | 本次该平台核心同步错误；成功或离线重建时为 null；每日预算内跳过请求时保留该次请求的错误状态 |
 | `coverage` | string | `submission_history` 或 `solved_only`，说明是否具备逐条提交历史 |
 | `collectionMethod` | string | `http`、`authenticated_http` 或 `browser_import`，表示当前成功快照的获取方式 |
 | `dataScope` | string，可省略 | 牛客为 `practice_coding`，仅代表公开编程练习；不能推断比赛内提交完整性 |
-| `reportedCounts` | object，可省略 | 来源页面展示的摘要数字，见下文；当前用于洛谷 |
+| `reportedCounts` | object，可省略 | 来源页面展示的摘要数字，见下文；历史洛谷快照使用，当前不产生 |
 | `status` | string，可省略 | 未连接来源的 `needs_auth`、`needs_import`、`needs_sync` 或 `error`；已有成功快照通常省略，错误仍查看 `error` |
 | `message` | string，可省略 | 未连接状态的人类可读说明 |
 
 `error`、`warnings`、`message` 是供人阅读的文本，不是稳定错误码。空错误不证明数据刚刚刷新；始终结合 `lastSuccess` 和 `collectionMethod`。
 
-`coverage: "solved_only"` 当前用于洛谷：只有通过题目及已尝试状态，不能生成 AC 次数和日期。`collectionMethod: "browser_import"` 表示手动导入，**不表示每天自动刷新**；QOJ 首次也可从正常登录浏览器的已导出页面导入，此后配置 Secret 的成功同步会变成 `authenticated_http`；洛谷公开页同步成功后为 `http`。
+`coverage: "solved_only"` 用于历史洛谷快照：只有通过题目及已尝试状态，不能生成 AC 次数和日期；当前部署不输出该来源。`collectionMethod: "browser_import"` 表示手动导入，**不表示每天自动刷新**；QOJ 首次也可从正常登录浏览器的已导出页面导入，此后配置 Secret 的成功同步会变成 `authenticated_http`。
 
 `reportedCounts` 若存在，包含 `solved: integer` 与 `submitted: integer | null`，分别保留页面“通过”和“提交”摘要。洛谷“提交”摘要的口径未被验证为逐条提交总数，因此不填入 `submissionCount`，也不可推算 AC 次数。`solved` 会与去重后的导入通过题目数核对。
 
@@ -199,9 +199,9 @@ for platform, source in data["sources"].items():
 | --- | --- | --- |
 | `handle` | string | 平台用户名 |
 | `url` | string · URI | 用户主页 |
-| `rating` | integer 或 null | 当前 Rating；未定级或获取不到时可为空；QOJ / 洛谷不采集，固定 null |
+| `rating` | integer 或 null | 当前 Rating；未定级或获取不到时可为空；QOJ 不采集，固定 null |
 | `maxRating` | integer 或 null | 最高 Rating |
-| `rank` | string 或 null | AtCoder 为 `Algorithm`，Codeforces 为官方段位；QOJ / 洛谷 / 牛客为 null |
+| `rank` | string 或 null | AtCoder 为 `Algorithm`，Codeforces 为官方段位；QOJ / 牛客为 null |
 | `lastSuccess` | string · date-time 或 null | Rating 独立的最后成功获取时间；可能早于 Source 时间 |
 
 ### Problem
@@ -209,13 +209,13 @@ for platform, source in data["sources"].items():
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
 | `id` | string | 带平台前缀的题目唯一 ID |
-| `platform` | string | `atcoder`、`codeforces`、`qoj`、`luogu` 或 `nowcoder` |
+| `platform` | string | `atcoder`、`codeforces`、`qoj` 或 `nowcoder` |
 | `contestId` | string 或 null | 题库中的主要比赛关联；不是完整的比赛成员关系，也不保证出现在 `contests` 中 |
 | `index` | string | 主要目录中的题目标号，例如 `A`、`D1` |
 | `name` | string | 题目名称；元数据缺失时可能回退为题号 |
 | `url` | string · URI | 题目链接 |
-| `difficulty` | integer 或 null | AtCoder Problems 换算后估计难度或 CF rating；QOJ / 洛谷 / 牛客为 null |
-| `difficultyLabel` | string 或 null，可省略 | 洛谷页面上的难度分组文字；未获取时为 null，不转换成数值 rating |
+| `difficulty` | integer 或 null | AtCoder Problems 换算后估计难度或 CF rating；QOJ / 牛客为 null |
+| `difficultyLabel` | string 或 null，可省略 | 历史洛谷页面上的难度分组文字，当前不产生；不转换成数值 rating |
 
 ID 格式：
 
@@ -226,7 +226,7 @@ ID 格式：
 | CF 无比赛 ID 的特殊题库 | `codeforces:problemset:{problemsetName}:{index}`，其 `contestId` 为 null |
 | QOJ 题目 | `qoj:{problemId}`，例如 `qoj:1` |
 | 牛客题目 | `nowcoder:{problemId}`，例如 `nowcoder:321116`，仅用公开 `/acm/problem/` 题号，不按名称合并 |
-| 洛谷题目 | `luogu:{problemId}`，例如 `luogu:P1001` |
+| 历史洛谷题目（当前不导出） | `luogu:{problemId}`，例如 `luogu:P1001` |
 | QOJ 比赛 | `qoj:{contestId}`；与 QOJ 题目 ID 属于不同集合 |
 | AtCoder 比赛 | `atcoder:{contest_id}` |
 | Codeforces 比赛 | `codeforces:{contestId}` |
@@ -247,9 +247,9 @@ ID 格式：
 | `problemIndices` | object，可省略 | 题目 ID → 本场题号；当前用于 AtCoder / QOJ |
 | `lastSubmissionEpoch` | integer，可省略 | 本场最新一次实际提交的 Unix 秒，当前用于 QOJ；不等于比赛开始时间 |
 | `catalogComplete` | boolean | 是否按当前数据来源获得完整目录；不代表隐藏 / 移除的题目也已知 |
-| `hasSubmissions` | boolean | 用户是否实际在此比赛有提交；无需 AC，也不要求是正式参赛 |
+| `hasSubmissions` | boolean · const true | 当前只导出有实际提交的比赛；无需 AC，也不要求是正式参赛 |
 
-某题在本场的显示标号使用 `contest.problemIndices?.[problem.id] ?? problem.index`。不能仅按 `Problem.contestId` 分组还原比赛，因为同一题目可能被多个比赛复用。QOJ 仅保留 `hasSubmissions: true` 的比赛，不因题目的“曾用于这些比赛”列表推断参加；`startEpoch` 当前为 0，前端排序可退回 `lastSubmissionEpoch`。洛谷与牛客当前不提供比赛对象；牛客已接入范围是公开编程练习。
+某题在本场的显示标号使用 `contest.problemIndices?.[problem.id] ?? problem.index`。不能仅按 `Problem.contestId` 分组还原比赛，因为同一题目可能被多个比赛复用。所有平台均仅保留 `hasSubmissions: true` 的比赛。AtCoder 共享题通过、QOJ 题目的“曾用于这些比赛”列表不能用于推断本场有提交。QOJ 的 `startEpoch` 当前为 0，前端排序可退回 `lastSubmissionEpoch`。洛谷与牛客当前不提供比赛对象；牛客已接入范围是公开编程练习。
 
 ### AcceptedSubmission
 
@@ -273,18 +273,18 @@ ID 格式：
 | AC 时间未知的已解题数 | `undatedSolved.length`；不能分配到导入当天或其他日期 |
 | 首次 AC | 每个 `problemId` 取最小 `epoch`，同秒取较小提交 `id` |
 | 每日新增 / 热力图 | 只从 `accepted` 算全历史首次 AC，再按 UTC+8 日期计数；未知时间题目排除 |
-| 已记录 AC 次数 | `accepted.length`，包括重复通过；不代表洛谷等缺失历史来源的全部次数 |
+| 已记录 AC 次数 | `accepted.length`，包括重复通过；不代表未接入范围或缺失历史的全部次数 |
 | 比赛已 AC 数 | `contest.problems` 中已出现在首次 AC 集合的题目数量 |
 | 比赛整场完成 | `catalogComplete === true`、题目数大于 0，且已 AC 数等于题目数 |
 | 有提交的比赛 | `contest.hasSubmissions === true` |
 | 连续做题 | 仅以 `accepted` 的不同日期计算；今天无 AC 则可结束于昨天；无时间记录不贡献天数 |
 
-API 不提供顶层 `summary` 对象；CLI / Actions 的摘要会同时输出累计解题、已记录 AC 次数及未知时间题数。累计解题可多于每日新增的历史合计，差额来自 `undatedSolved`。单独查看 `solved_only` 来源时，本月、今日和连续天数应显示“未知”，而不是 0；前端隐藏没有日期依据的热力图和每日清单。
+API 不提供顶层 `summary` 对象；CLI / Actions 的摘要输出累计解题、已记录 AC 次数及未知时间题数。当前 `undatedSolved: []`，累计解题与历史每日新增之和一致。读取旧 v2 快照时，差额可能来自 `undatedSolved`，这些题目不能分配到采集日期。当前页面不展示无时间题目清单。
 
 在上面的 JavaScript 示例之后，可这样计算已提交比赛的进度：
 
 ```js
-const progress = data.contests.filter(contest => contest.hasSubmissions).map(contest => {
+const progress = data.contests.filter(contest => contest.hasSubmissions === true).map(contest => {
   const solved = contest.problems.filter(id => first.has(id)).length;
   const total = contest.problems.length;
   return {
@@ -298,11 +298,13 @@ const progress = data.contests.filter(contest => contest.hasSubmissions).map(con
 console.table(progress);
 ```
 
-目录不完整时显示 `solved / ?`。AtCoder 共享题在其他比赛通过也会贡献本场进度，因此 `hasSubmissions: false` 与已完成若干题甚至整场完成可以同时成立。Codeforces 跨 Div 题目按各自 ID 保留，未复用 CFTracker 的同题推断。
+页面矩阵每行一场比赛，按本场题号 A / B / C… 对齐题名链接；CF 的 A1 / A2 等子题在同一列保留各自链接，AtCoder 的 H / Ex 共用一列，缺题位置留空。绿色表示已 AC，黄色表示尝试未通过；进度状态筛选不会扩大到无提交的比赛。
+
+目录不完整时显示 `solved / ?`。AtCoder 共享题在其他比赛通过也会贡献本场进度，但如果本场从未提交，整场不会进入公开 `contests` 数组。内部完整目录仍可含 `hasSubmissions: false` 的比赛；不能从 `Problem.contestId` 假定对应比赛已导出。Codeforces 跨 Div 题目按各自 ID 保留，未复用 CFTracker 的同题推断。
 
 ## 上游数据获取
 
-这部分供维护同步器使用。普通 API 使用方读取一次本项目快照即可，无需直接访问上游。网络采集使用 `GET`，洛谷只读取公开练习页的初始 HTML；以下源站地址不是本项目新增的 API 路由。
+这部分供维护同步器使用。普通 API 使用方读取一次本项目快照即可，无需直接访问上游。已启用平台的网络采集使用 `GET`；以下源站地址不是本项目新增的 API 路由。
 
 ### AtCoder Problems
 
@@ -325,7 +327,7 @@ curl --fail --silent --show-error --max-time 45 \
 
 完整同步每次从 `from_second=0` 开始；收到不足 500 条时结束，否则以本页最大的 `epoch_second` 作为下一页游标，保留边界并按提交 `id` 去重，**不加 1 秒**。如果满页游标无法前进则报错，避免悄悄截断同秒提交。包含边界的查询行为可见上游 [submission_client.rs](https://github.com/kenkoooo/AtCoderProblems/blob/master/atcoder-problems-backend/sql-client/src/submission_client.rs)。
 
-只把 `result == "AC"` 转为通过记录。目录默认收录已开始的比赛，再补入实际提交涉及的缺失比赛。难度 `d < 400` 时转为 `floor(400 × exp((d − 400) / 400) + 0.5)`，否则使用 Python `round(d)`；缺失模型时为 null。
+只把 `result == "AC"` 转为通过记录。内部目录收录已开始的比赛，再补入实际提交涉及的缺失比赛；公开导出只保留用户有实际提交的比赛。难度 `d < 400` 时转为 `floor(400 × exp((d − 400) / 400) + 0.5)`，否则使用 Python `round(d)`；缺失模型时为 null。
 
 ### AtCoder 官方 Rating
 
@@ -354,7 +356,7 @@ curl --fail --silent --show-error --max-time 45 \
 
 `from` 从 1 开始，提交按 ID 降序返回。项目每次完整拉取，每页请求 1000 条；满页后令 `from += 990`，重叠 10 条以减少新提交导致偏移变化的影响，并按提交 ID 去重。不足 1000 条时结束；满页但没有新增记录时报错。偏移分页无法保证同步期间持续大量新增时的事务一致性，后续每日完整同步会重新读取。
 
-只将 `verdict == "OK"` 转为通过记录，不按参加类型过滤练习、比赛、虚拟赛等。常规目录默认收录 `phase == "FINISHED"` 的比赛，再补入实际提交涉及的其他比赛。源站不可见的私人提交和隐藏数据无法补齐。
+只将 `verdict == "OK"` 转为通过记录，不按参加类型过滤练习、比赛、虚拟赛等。内部常规目录收录 `phase == "FINISHED"` 的比赛，再补入实际提交涉及的其他比赛；公开导出只保留有实际提交的比赛。源站不可见的私人提交和隐藏数据无法补齐。
 
 ### Codeforces Gym 题目目录
 
@@ -404,34 +406,24 @@ Source 为 `coverage: "submission_history"`、`collectionMethod: "http"`、`data
 
 每天一个 UTC 自然日最多启动一次采集；内部 `data/sources/nowcoder-request.json` 持久化 `lastAttempt`、`error` 和 `paused`。一次采集的分页请求至少间隔 2.2 秒、最多 80 次，每次超时 40 秒、响应上限 2 MB，没有自动重试或重定向。首次全量收集；之后优先读取新记录，遇到缓存重叠且提交数、尝试题数、通过题数都匹配才停止。每七天完整重读以反映重判；旧页重判若不改变三个摘要数，可能到下一次全量核对才反映。全量超过 800 条会触及预算并暂停，维护者应检查来源和方案后处理，不能通过连续重跑扩大预算。
 
-内部分平台文件保留规范化的 `practiceSubmissions` 和 `lastFullSync` 以支持增量，不包含源码或凭据，也不输出到公开 `dashboard.json`。同步过程中新增提交导致分页计数变化或偏移时，停止当天并保留上一快照；访问拒绝、401 / 403 / 429、重定向、账号或页面结构异常则持久暂停。维护者核实并修复后，可清除 `paused` / `error`，保留 `lastAttempt`；独立 checkout、未提交状态或强制取消不共享可靠预算，限制与洛谷相同。
+内部分平台文件保留规范化的 `practiceSubmissions` 和 `lastFullSync` 以支持增量，不包含源码或凭据，也不输出到公开 `dashboard.json`。同步过程中新增提交导致分页计数变化或偏移时，停止当天并保留上一快照；访问拒绝、401 / 403 / 429、重定向、账号或页面结构异常则持久暂停。维护者核实并修复后，可清除 `paused` / `error`，保留 `lastAttempt`；独立 checkout、未提交状态或强制取消不共享可靠预算，应避免同时启动多个采集器。
 
 这里使用的是公开 HTML，不是牛客承诺稳定的个人开放 API。[竞赛站 robots](https://ac.nowcoder.com/robots.txt) 当前允许 `/acm/`；没有在该文件中找到数值请求配额，上述限制是本项目的自定预算。[官方 API 文档](https://docs.nowcoder.com/) 面向企业笔试/面试业务，不能当个人竞赛历史接口；[官方 Tracker](https://www.nowcoder.com/problem/tracker) 的摘要和练习页面口径也不能直接混用。
 
-### 洛谷：每天一次的公开练习页
+### 洛谷：暂时停用（历史实现）
 
-来源为 [Lucius7 公开练习页](https://www.luogu.com.cn/user/571082/practice)，用户 UID 为 `571082`。同步器无登录读取该页面一次，仅解析初始 HTML 中的 `script#lentille-context[type="application/json"]`。其中 `data.passed`、`data.submitted` 与 `data.user` 提供通过名单、未通过的尝试名单、UID / 用户名与摘要计数。**不调用个人历史 API、不翻页、不使用 Cookie，也不请求页面脚本或图片。**
+来源为 [Lucius7 公开练习页](https://www.luogu.com.cn/user/571082/practice)，UID `571082`。该页面只提供通过题目名单，没有逐条 AC 时间。用户已选择暂时停用，**在线同步、离线重建和每日 Actions 均不访问洛谷，也不读取其快照加入公开数据**。页面没有洛谷筛选项或无时间题目清单；已有的 547 道无时间通过题目不计入当前累计。
 
-首次规范化得到 **547 道通过题目、589 道目录 / 已尝试题目**。所有通过题目放入 `undatedSolved`；`accepted: []`、`contests: []`、`submissionCount: null`。采集时间仅用于 Source `lastSuccess`；不能把 547 题归到导入当天，也无法根据此快照恢复历史每日练习、AC 次数或比赛进度。
+[`luogu.py`](../scripts/luogu.py)、`data/sources/luogu.json` 和 `luogu-request.json` 作为内部历史实现与存档保留。原实现每个 UTC 自然日最多读取一次公开练习页的初始 HTML，解析 `data.passed` / `data.submitted` / `data.user`，不调用个人历史 API、不翻页、不使用 Cookie。访问拒绝、重定向或结构异常会暂停采集；当前入口已停用，修改请求状态不能重新启用。
 
-源状态为 `coverage: "solved_only"`；公开页面同步成功后 `collectionMethod: "http"`，手动导入仍为 `browser_import`。页面“通过”“提交”摘要存入 `reportedCounts`，其中“提交”不冒充逐条提交数量。校验要求唯一 JSON 上下文、正确模板 / 账号、题目数组存在且不重复，以及通过数量与通过名单一致；已建立非空快照后拒绝空名单。未知难度保留 null。
-
-请求预算持久化在内部文件 `data/sources/luogu-request.json`：`lastAttempt` 是最近尝试的 UTC 时间，`error` 是该次错误，`paused` 表示停止后续请求。请求前写入预算，同步步骤结束后、构建网站前随数据提交保留；同一 UTC 日期的推送或手动运行复用记录。网络 / 5xx 失败当日不重试；401 / 403 / 429、重定向、访问验证或结构错误设置 `paused: true`，之后即使跨天也不会请求。维护者正常核实后才可将 `paused` 改为 false、清除 `error`；保留 `lastAttempt`，当日预算仍有效。若工作流被强制终止、状态未提交或使用另一个独立检出，不应假设它们共享这一预算。
-
-单次公开读取示例（遵守每日预算，不要与同步器重复运行）：
-
-```sh
-curl --fail --silent --show-error --max-time 40 \
-  'https://www.luogu.com.cn/user/571082/practice' \
-  --output luogu-practice.html
-```
+历史快照为 `coverage: "solved_only"`，通过题目存入 `undatedSolved`，`accepted: []`、`contests: []`、`submissionCount: null`。采集时间只代表 Source `lastSuccess`，不能恢复历史每日记录。`reportedCounts` 保留页面摘要，其中“提交”不冒充逐条提交数。保留以下离线导入格式供维护旧存档；它不会恢复当前看板上的洛谷数据。
 
 ### 手动导入已保存的浏览器数据
 
-[import_browser.py](../scripts/import_browser.py) 仅解析已有 JSON 文件，不联网。QOJ 提交与比赛文件必须成对传入；洛谷文件可独立导入，也可在同一命令一起导入。输入文件应只包含下述必要数据，不能含 Cookie、源码或无关账号信息。
+[import_browser.py](../scripts/import_browser.py) 仅解析已有 JSON 文件，不联网。QOJ 提交与比赛文件必须成对传入；洛谷文件仍可独立导入到内部存档，但停用期间不会被在线或离线汇总纳入公开数据。输入文件应只包含下述必要数据，不能含 Cookie、源码或无关账号信息。
 
 ```sh
-# 洛谷：从正常打开的公开练习页保存结构化数据后导入
+# 历史洛谷格式：只更新内部存档，不恢复公开接入
 python3 scripts/import_browser.py --luogu-practice /path/to/luogu-practice.json
 
 # QOJ：从正常登录后的所有提交页及所需比赛页保存数据后导入
@@ -439,7 +431,7 @@ python3 scripts/import_browser.py \
   --qoj-submissions /path/to/qoj-submissions.json \
   --qoj-contests /path/to/qoj-contests.json
 
-# 导入只保存平台快照；随后离线汇总、校验并构建
+# 汇总已启用平台并构建；即使导入了洛谷，仍排除其数据
 python3 scripts/sync.py --offline
 npm test
 npm run build
@@ -468,7 +460,7 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 
 每次请求超时为 45 秒，最多尝试 3 次；前两次失败后分别等待 3 秒、6 秒，再按主机间隔继续。请求带可识别的项目 User-Agent。该限制是单进程内的设置，不协调多台机器或多个同步进程；维护者应避免重复启动采集器。
 
-现有 AtCoder / Codeforces 客户端未实现特殊的 `Retry-After` 解析或针对 403 / 429 的独立停止策略，不能把有限重试误写为这些能力。上游拒绝访问或限流时应检查官方规则和运行记录，避免手工连续重跑。QOJ 使用独立客户端：起始间隔 2.2 秒、超时 40 秒，普通网络错误最多 3 次尝试并等待 3 / 6 秒；登录或访问验证、401 / 403 / 429 立即停止，不重试。洛谷公开页客户端超时 40 秒，每个 UTC 自然日最多发起一次请求，无自动重试或重定向；手动文件导入仍不联网。牛客每天一次采集、每次最多 80 个分页请求，间隔 2.2 秒，无重试，访问拒绝和结构异常暂停；详见牛客小节。这些保守设置不是源站公布的配额，也不保证账号或请求永远不会被限制。
+现有 AtCoder / Codeforces 客户端未实现特殊的 `Retry-After` 解析或针对 403 / 429 的独立停止策略，不能把有限重试误写为这些能力。上游拒绝访问或限流时应检查官方规则和运行记录，避免手工连续重跑。QOJ 使用独立客户端：起始间隔 2.2 秒、超时 40 秒，普通网络错误最多 3 次尝试并等待 3 / 6 秒；登录或访问验证、401 / 403 / 429 立即停止，不重试。洛谷已停用，不发起自动请求；手动文件导入只操作本地存档。牛客每天一次采集、每次最多 80 个分页请求，间隔 2.2 秒，无重试，访问拒绝和结构异常暂停；详见牛客小节。这些保守设置不是源站公布的配额，也不保证账号或请求永远不会被限制。
 
 ## 错误与新鲜度
 
@@ -481,9 +473,8 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 | QOJ 首次已尝试但失败且无缓存 | `status: "error"`、错误文本与 null 时间 / 数量；其他来源仍可部署，并报告降级 |
 | 牛客首次失败且无缓存，或离线无缓存 | 离线无缓存为 `needs_sync`；已尝试失败为 `error`，null 时间 / 数量，不计入统计 |
 | 牛客当日已采集或暂停 | 复用成功快照及其原时间；保留错误，零新增请求 |
-| 洛谷首次获取失败且无快照 | `status: "error"`、null 时间 / 提交数；离线且无快照时为 `needs_import`，不伪造 0 道题 |
+| 洛谷停用 | 不请求、不读取快照、不输出来源状态、题目或提交，不产生新鲜度提示 |
 | QOJ Cookie 失效或必需页面失败，有缓存 | 保留整份 QOJ 历史与旧时间，设置 `error` 并报告降级 |
-| 洛谷当天已请求或自动请求已停止 | 复用成功快照，不更新其采集时间；失败原因保留在 `error`，不再发出请求 |
 | 原本非空的提交历史突然变为空 | 拒绝覆盖，按核心同步失败处理 |
 | AtCoder / Codeforces Rating 失败 | 保留旧 Rating 及 Profile `lastSuccess`，增加 warning；首次无旧值时保持 null |
 | AtCoder 难度模型失败 | 本次难度为 null，增加 warning，不沿用旧难度 |
@@ -498,7 +489,7 @@ QOJ 每条 row 使用 `id`、`problem`、`problemUrl`、`submitter`、`verdict`�
 2. `sources[platform].lastSuccess` 距当前时间多久；网页以超过 36 小时为陈旧提示阈值。
 3. `warnings` 是否说明可选数据有问题；Rating 另看 `profile.lastSuccess`。
 
-`collectionMethod: "browser_import"` 表示当前数据仍来自手动采集；一次成功的公开页同步才会将洛谷改为 `http`。每日预算跳过请求或访问停止时，不能把汇总生成时间当成新的采集时间。`generatedAt` 只表示汇总生成时间。AtCoder Problems 的收录也可能落后于 AtCoder 实时提交，即使本项目刚刚同步成功，仍受上游延迟影响。
+`collectionMethod: "browser_import"` 表示当前数据仍来自手动采集；QOJ 成功使用 Cookie 同步后变为 `authenticated_http`。每日预算跳过请求或访问停止时，不能把汇总生成时间当成新的采集时间。`generatedAt` 只表示汇总生成时间。AtCoder Problems 的收录也可能落后于 AtCoder 实时提交，即使本项目刚刚同步成功，仍受上游延迟影响。
 
 GitHub Actions 会先部署可用的降级快照，然后通过 `degraded=true` 将工作流标为失败，便于发现问题。仅可选数据的 warnings 不会设置这个降级标记。不要用“站点 HTTP 200”或“工作流成功”代替逐平台的新鲜度检查。
 
@@ -506,7 +497,7 @@ GitHub Actions 会先部署可用的降级快照，然后通过 `degraded=true` 
 
 本项目的 QOJ 采集使用正常登录的账号会话，不提供代理登录或无认证的实时用户历史接口。只有实际返回且能验证的提交和比赛纳入快照；不绕过登录页、人机验证或访问限制。已有快照的 Cookie 失效时保留旧数据并提示；首次未连接时不伪造 0 条提交。
 
-洛谷同步只读取公开练习页，不调用历史提交 API、不自动翻页，不使用 Cookie 或测试账号限额。2026-09-08 核对的 [robots.txt](https://www.luogu.com.cn/robots.txt) 未禁止该用户练习页；[公开规则](https://help.luogu.com.cn/ula/luogu) 未给出此页面的数值调用配额，因此每天一次是项目自己的保守请求预算，不是官方授权额度。[官方 OpenAPI](https://docs.lgapi.cn/open/openapi) 的评测提交、结果与配额接口不能用于恢复个人历史 AC 时间。若规则、页面或访问权限变化，应停止并核实，不能绕过验证。
+洛谷当前没有自动请求。历史适配器未调用个人历史提交 API，也未测试账号限额。[官方 OpenAPI](https://docs.lgapi.cn/open/openapi) 的评测提交、结果与配额接口不能用于恢复个人历史 AC 时间。将来重新接入需先确认可用数据和当时的源站规则；不能把当前保留的内部适配器理解为已启用采集。
 
 ## 版本与维护
 
@@ -514,15 +505,16 @@ GitHub Actions 会先部署可用的降级快照，然后通过 `degraded=true` 
 
 这是破坏性版本升级，不能只把版本检查从 `1` 改成 `2` 而沿用旧统计：
 
-1. 平台增加 `qoj`、`luogu`，`sources` 包含四个来源及未连接状态。
+1. v2 初始版本增加 `qoj`、`luogu` 与未连接状态；后续加入牛客并暂时停用洛谷，当前来源以响应的 `sources` 为准。
 2. 新增必填 `undatedSolved`；累计解题取它与 `accepted` 题目集合的并集，日期统计仍只使用 `accepted`。
 3. `Source.lastSuccess`、`Source.submissionCount` 允许 null；新增必填 `coverage`、`collectionMethod` 及可选 `reportedCounts`、`status`、`message`。
 4. 新增可选 `Problem.difficultyLabel` 与 `Contest.lastSubmissionEpoch`；QOJ 题目 ID 与比赛 ID 属于不同集合。
 5. `accepted.length` 现在明确表示“已记录且有时间的 AC 次数”，不能宣称四个平台完整 AC 总次数；洛谷采集时间不能转为 AC 事件。
 
 - 2.1.0 文档与部署新增 `nowcoder` 平台、`Source.dataScope` 和 `needs_sync` 状态，原有字段语义不变，继续使用 `schemaVersion: 2`。旧 v2 快照可能只有四个来源；客户端需要识别牛客或忽略未知平台，不能假设固定平台数量。
-- 当前公开数据版本为 `schemaVersion: 2`；OpenAPI 格式为 `3.1.0`，文档自身版本为 `2.1.0`，三者含义不同。内部 `data/sources/*.json` 仍使用内部版本 `1`，不属于公开契约。
-- 客户端应检查支持的数据版本、允许未知的附加字段，并正确处理可空值、可选字段和未知展示类别；当前平台枚举为 `atcoder` / `codeforces` / `qoj` / `luogu` / `nowcoder`。
+- 2.2.0 暂时停用洛谷：不再请求、导出或统计，`undatedSolved` 保留为空数组。所有平台的公开 `contests` 仅含 `hasSubmissions: true`，页面按 A / B / C… 对齐题名；内部完整目录保留。字段含义不变，继续使用 `schemaVersion: 2`。本版 OpenAPI 描述当前部署范围，旧快照应使用对应提交中的契约。
+- 当前公开数据版本为 `schemaVersion: 2`；OpenAPI 格式为 `3.1.0`，文档自身版本为 `2.2.0`，三者含义不同。内部 `data/sources/*.json` 仍使用内部版本 `1`，不属于公开契约。
+- 客户端应检查支持的数据版本、允许未知的附加字段，并正确处理可空值、可选字段和未知展示类别；当前启用平台为 `atcoder` / `codeforces` / `qoj` / `nowcoder`；遍历 `sources`，不要假定已停用来源仍有状态对象。
 - 维护者更改字段含义、必填性或平台契约时，应同步更新本文、OpenAPI 与相关测试，评估是否需要升级 `schemaVersion`；不要静默改变统计口径。
 - OpenAPI 只描述本项目的静态快照，不为上游网站的稳定性、权限或配额提供承诺。
 - 展示原始链接时使用返回的 `url`；消费名称、warnings、error 等上游相关文本时按文本渲染，避免作为 HTML 插入。

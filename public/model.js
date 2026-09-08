@@ -1,13 +1,50 @@
 export const TIMEZONE = 'Asia/Taipei';
 export const PLATFORM_NAMES = { atcoder: 'AtCoder', codeforces: 'Codeforces', qoj: 'QOJ', luogu: '洛谷', nowcoder: '牛客' };
 export const PLATFORM_CODES = { atcoder: 'At', codeforces: 'Cf', qoj: 'Q', luogu: '洛', nowcoder: '牛' };
+export const ACTIVE_PLATFORMS = ['atcoder', 'codeforces', 'qoj', 'nowcoder'];
 
 export function solvedProblemIds(events, undatedSolved = []) {
   return new Set([...events.map(event => event.problemId), ...undatedSolved]);
 }
 
 export function includedContest(contest) {
-  return contest.platform !== 'qoj' || contest.hasSubmissions === true;
+  return ACTIVE_PLATFORMS.includes(contest.platform) && contest.hasSubmissions === true;
+}
+
+export function activeDashboard(data) {
+  const problems = data.problems.filter(problem => ACTIVE_PLATFORMS.includes(problem.platform));
+  const ids = new Set(problems.map(problem => problem.id));
+  return {
+    ...data,
+    sources: Object.fromEntries(Object.entries(data.sources).filter(([platform]) => ACTIVE_PLATFORMS.includes(platform))),
+    problems,
+    accepted: data.accepted.filter(event => ACTIVE_PLATFORMS.includes(event.platform) && ids.has(event.problemId)),
+    attempted: data.attempted.filter(id => ids.has(id)),
+    undatedSolved: data.undatedSolved.filter(id => ids.has(id)),
+    contests: data.contests.filter(includedContest),
+  };
+}
+
+export function contestMatrix(contests, problems) {
+  const keys = new Set();
+  let hasEx = false;
+  const rows = contests.map(contest => {
+    const cells = new Map();
+    for (const id of contest.problems) {
+      const problem = problems.get(id);
+      if (!problem) continue;
+      const index = contest.problemIndices?.[id] ?? problem.index;
+      // Keep split CF problems together and align AtCoder's H / Ex slot.
+      const key = index === 'Ex' ? 'H' : index.match(/^([A-Z])[0-9]*$/)?.[1] || index;
+      hasEx ||= index === 'Ex';
+      keys.add(key);
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push({ id, index });
+    }
+    return { contest, cells };
+  });
+  const columns = [...keys].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })).map(key => ({ key, label: key === 'H' && hasEx ? 'H / Ex' : key }));
+  return { columns, rows };
 }
 
 export function dateKey(epochSeconds) {

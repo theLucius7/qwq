@@ -22,6 +22,7 @@ import nowcoder
 ROOT = Path(__file__).resolve().parents[1]
 HANDLE = "Lucius7"
 QOJ_HANDLE = os.environ.get("QOJ_HANDLE") or HANDLE
+ACTIVE_PLATFORMS = ("atcoder", "codeforces", "qoj", "nowcoder")
 AT = "https://kenkoooo.com/atcoder"
 CF = "https://codeforces.com"
 SOURCE_DIR = ROOT / "data" / "sources"
@@ -469,21 +470,29 @@ def refresh_source(platform, collector, client, previous):
         return copy.deepcopy(previous), str(error)
 
 
+def make_dashboard(sources, snapshots):
+    active = [snapshot for snapshot in snapshots if snapshot["platform"] in ACTIVE_PLATFORMS]
+    dashboard = {"schemaVersion": 2, "handle": HANDLE, "timezone": "Asia/Taipei", "generatedAt": now(),
+                 "sources": {name: source for name, source in sources.items() if name in ACTIVE_PLATFORMS}}
+    for key in ("problems", "contests", "accepted", "attempted", "undatedSolved"):
+        dashboard[key] = [item for snapshot in active for item in snapshot.get(key, [])]
+    dashboard["contests"] = [contest for contest in dashboard["contests"] if contest.get("hasSubmissions") is True]
+    return dashboard
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true", help="Build dashboard from existing source snapshots without requests")
     args = parser.parse_args()
     client, sources, snapshots, failed = Client(), {}, [], []
-    for platform, collector in (("atcoder", collect_atcoder), ("codeforces", collect_codeforces), ("qoj", collect_qoj), ("luogu", collect_luogu), ("nowcoder", collect_nowcoder)):
+    collectors = {"atcoder": collect_atcoder, "codeforces": collect_codeforces, "qoj": collect_qoj, "nowcoder": collect_nowcoder}
+    for platform in ACTIVE_PLATFORMS:
+        collector = collectors[platform]
         path = SOURCE_DIR / f"{platform}.json"
         previous = read_json(path)
         if platform == "nowcoder" and previous is None and args.offline:
             sources[platform] = pending_nowcoder()
             print("Nowcoder: awaiting first public-practice snapshot", flush=True)
-            continue
-        if platform == "luogu" and previous is None and args.offline:
-            sources[platform] = pending_luogu()
-            print("Luogu: awaiting first public-profile snapshot", flush=True)
             continue
         if platform == "qoj" and previous is None and (args.offline or not os.environ.get("QOJ_COOKIE")):
             sources[platform] = pending_qoj()
@@ -498,9 +507,9 @@ def main():
             try:
                 snapshot, error = refresh_source(platform, collector, client, previous)
             except RuntimeError as first_error:
-                if platform not in {"qoj", "luogu", "nowcoder"}:
+                if platform not in {"qoj", "nowcoder"}:
                     raise
-                sources[platform] = {"qoj": pending_qoj, "luogu": pending_luogu, "nowcoder": pending_nowcoder}[platform](str(first_error))
+                sources[platform] = {"qoj": pending_qoj, "nowcoder": pending_nowcoder}[platform](str(first_error))
                 failed.append(platform)
                 print(f"::warning::{platform} first sync failed: {first_error}", flush=True)
                 continue
@@ -521,9 +530,7 @@ def main():
         snapshots.append(snapshot)
         count = len({event["problemId"] for event in snapshot["accepted"]} | set(snapshot.get("undatedSolved", [])))
         print(f"{platform}: {count} solved, {len(snapshot['accepted'])} AC submissions", flush=True)
-    dashboard = {"schemaVersion": 2, "handle": HANDLE, "timezone": "Asia/Taipei", "generatedAt": now(), "sources": sources}
-    for key in ("problems", "contests", "accepted", "attempted", "undatedSolved"):
-        dashboard[key] = [item for snapshot in snapshots for item in snapshot.get(key, [])]
+    dashboard = make_dashboard(sources, snapshots)
     atomic_json(OUTPUT, dashboard)
     solved = {event['problemId'] for event in dashboard['accepted']} | set(dashboard['undatedSolved'])
     summary = f"Lucius7: {len(solved)} solved problems, {len(dashboard['accepted'])} recorded AC submissions, {len(dashboard['undatedSolved'])} solved problems without AC timestamps.\n"

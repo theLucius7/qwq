@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import sys
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -23,6 +24,41 @@ class FakeClient:
 
 
 class SyncTests(unittest.TestCase):
+    def test_public_snapshot_excludes_disabled_source_and_requires_actual_contest_submissions(self):
+        active = {"platform": "atcoder", "problems": [{"id": "atcoder:shared"}],
+                  "accepted": [{"problemId": "atcoder:shared", "epoch": 10}], "attempted": ["atcoder:shared"],
+                  "contests": [{"id": str(i), "hasSubmissions": flag, "problems": ["atcoder:shared"]} for i, flag in enumerate([True, False, None, 1, "true"])], "undatedSolved": []}
+        disabled = {"platform": "luogu", "problems": [{"id": "luogu:P1"}], "attempted": ["luogu:P1"], "undatedSolved": ["luogu:P1"]}
+        practice = {"platform": "nowcoder", "problems": [{"id": "nowcoder:1"}], "accepted": [], "attempted": ["nowcoder:1"], "contests": []}
+        result = sync.make_dashboard({"atcoder": {}, "luogu": {}, "nowcoder": {}}, [active, disabled, practice])
+        self.assertEqual(set(result['sources']), {'atcoder', 'nowcoder'})
+        self.assertEqual(result['undatedSolved'], [])
+        self.assertEqual([c['id'] for c in result['contests']], ['0'])
+        self.assertEqual([p['id'] for p in result['problems']], ['atcoder:shared', 'nowcoder:1'])
+        self.assertEqual(result['attempted'], ['atcoder:shared', 'nowcoder:1'])
+        self.assertEqual(len(active['contests']), 5)  # Keep internal full catalogs intact.
+
+    def test_online_and_offline_sync_never_read_or_collect_disabled_luogu(self):
+        snapshots = {}
+        for platform in sync.ACTIVE_PLATFORMS:
+            key = platform + ':1'
+            problem = {'id': key, 'platform': platform, 'index': 'A'}
+            contest = {'id': key, 'problems': [key], 'hasSubmissions': True}
+            snapshots[platform] = sync.make_snapshot(platform, {key: problem}, {} if platform == 'nowcoder' else {key: contest}, [], {key}, {}, [], 1, handle='theLucius7' if platform == 'nowcoder' else sync.HANDLE)
+        for offline in [False, True]:
+            reads = []
+            def read(path, fallback=None):
+                reads.append(path.stem)
+                self.assertNotEqual(path.stem, 'luogu')
+                return snapshots.get(path.stem, fallback)
+            with self.subTest(offline=offline), patch.object(sys, 'argv', ['sync.py'] + (['--offline'] if offline else [])), patch.object(sync, 'read_json', side_effect=read), patch.object(sync, 'atomic_json') as save, patch.object(sync, 'collect_luogu', side_effect=AssertionError('Disabled source')), patch('socket.socket.connect', side_effect=AssertionError('No network in this test')):
+                with patch.object(sync, 'collect_atcoder', return_value=snapshots['atcoder']), patch.object(sync, 'collect_codeforces', return_value=snapshots['codeforces']), patch.object(sync, 'collect_qoj', return_value=snapshots['qoj']), patch.object(sync, 'collect_nowcoder', return_value=snapshots['nowcoder']):
+                    sync.main()
+                self.assertEqual(reads, list(sync.ACTIVE_PLATFORMS))
+                published = save.call_args.args[1]
+                self.assertNotIn('luogu', published['sources'])
+                self.assertEqual(published['undatedSolved'], [])
+
     def test_atcoder_inclusive_timestamp_overlap_does_not_lose_equal_second_ac(self):
         first = [{"id": i, "epoch_second": i + 10} for i in range(499)]
         first.append({"id": 499, "epoch_second": 509})

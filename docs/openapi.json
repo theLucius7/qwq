@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lucius7 解题日志 · 公开快照 API",
-    "version": "2.1.0",
-    "description": "GitHub Pages 上的只读 JSON 文件。schemaVersion=2 支持 AtCoder、Codeforces、QOJ、洛谷与牛客。累计解题取 accepted 的题目 ID 与 undatedSolved 的并集；未知 AC 时间不参与日期统计。牛客只收录公开编程练习，每日增量、每七天全量核对，不提供比赛内记录完整性保证。QOJ 可用已授权登录态定时同步，洛谷每天最多读取一次公开练习页，无登录、不重试；访问限制或页面异常会停止后续请求。公开接口无认证、查询筛选、分页或写入；HTTP 200 不代表各源数据已更新。",
+    "version": "2.2.0",
+    "description": "GitHub Pages 上的只读 JSON 文件，schemaVersion=2。当前启用 AtCoder、Codeforces、QOJ 与牛客；洛谷暂时停用，不请求、不导出、不计入统计。比赛仅包含有实际提交的记录。累计解题取 accepted 的题目 ID 与 undatedSolved 的并集，后者当前为空数组。牛客仅收录公开编程练习，每日增量、每七天全量核对，不保证比赛内记录完整；QOJ 用已授权登录态定时同步。公开接口无认证、查询筛选、分页或写入；HTTP 200 不代表各源已更新。本契约描述当前部署，旧快照应使用对应提交的契约。",
     "contact": {
       "name": "qwq repository",
       "url": "https://github.com/theLucius7/qwq"
@@ -68,19 +68,17 @@
           "atcoder",
           "codeforces",
           "qoj",
-          "luogu",
           "nowcoder"
         ],
-        "description": "v2 平台。QOJ 为提交历史；洛谷为公开练习页提供的无 AC 时间通过题目。牛客为公开编程练习提交历史。"
+        "description": "当前启用的四个平台；洛谷暂时停用。牛客仅为公开编程练习范围。"
       },
       "ProblemId": {
         "type": "string",
-        "description": "带平台前缀的题目唯一 ID。QOJ 使用 qoj:{problemId}；洛谷使用 luogu:{problemId}；CF 特殊题库使用 codeforces:problemset:{problemsetName}:{index}。牛客使用 nowcoder:{problemId}，对应公开 /acm/problem/ 题号。",
+        "description": "带平台前缀的题目唯一 ID。QOJ 使用 qoj:{problemId}；CF 特殊题库使用 codeforces:problemset:{problemsetName}:{index}。牛客使用 nowcoder:{problemId}，对应公开 /acm/problem/ 题号。",
         "examples": [
           "atcoder:abc001_1",
           "codeforces:1:A",
           "qoj:1",
-          "luogu:P1001",
           "nowcoder:321116"
         ]
       },
@@ -95,7 +93,7 @@
       },
       "Profile": {
         "type": "object",
-        "description": "平台资料。AtCoder / Codeforces 提供当前与最高 Rating；牛客仅提供当前 Rating，最高值与段位为 null；QOJ / 洛谷的 Rating、最高 Rating、段位及 Rating 更新时间均为 null。",
+        "description": "平台资料。AtCoder / Codeforces 提供当前与最高 Rating；牛客仅提供当前 Rating，最高值与段位为 null；QOJ的 Rating、最高 Rating、段位及 Rating 更新时间均为 null。",
         "required": [
           "handle",
           "url",
@@ -186,14 +184,14 @@
               "null"
             ],
             "minimum": 0,
-            "description": "按提交 ID 去重的历史提交数，含失败和重复；洛谷与未连接来源为 null，不能解释成 0。"
+            "description": "按提交 ID 去重的历史提交数，含失败和重复；未连接来源为 null，不能解释成 0。"
           },
           "error": {
             "type": [
               "string",
               "null"
             ],
-            "description": "本次核心同步失败文本；成功或离线重建为 null。洛谷与牛客当日复用缓存时保留该次请求的失败状态。结合 lastSuccess、coverage 与 collectionMethod 判断。"
+            "description": "本次核心同步失败文本；成功或离线重建为 null。牛客当日复用缓存时保留该次请求的失败状态。结合 lastSuccess、coverage 与 collectionMethod 判断。"
           },
           "coverage": {
             "type": "string",
@@ -201,7 +199,7 @@
               "submission_history",
               "solved_only"
             ],
-            "description": "submission_history 表示具备已收录范围内的逐条提交历史，不保证所有私有/比赛记录完整；solved_only 表示仅通过题目名单，缺少 AC 时间。"
+            "description": "submission_history 表示具备已收录范围内的逐条提交历史，不保证所有私有/比赛记录完整；solved_only 表示仅通过题目名单，缺少 AC 时间。 solved_only 仅用于旧快照兼容，当前不输出洛谷。"
           },
           "collectionMethod": {
             "type": "string",
@@ -287,21 +285,21 @@
               "integer",
               "null"
             ],
-            "description": "AtCoder 换算难度或 CF rating；QOJ / 洛谷 / 牛客为 null。0 是有效数值。"
+            "description": "AtCoder 换算难度或 CF rating；QOJ / 牛客为 null。0 是有效数值。"
           },
           "difficultyLabel": {
             "type": [
               "string",
               "null"
             ],
-            "description": "可省略；洛谷公开页面的难度分组文字，不能转换或当作题目 rating。"
+            "description": "历史洛谷快照的难度分组文字，当前不产生；字段保留兼容性，不能当作数值 rating。"
           }
         },
         "additionalProperties": true
       },
       "Contest": {
         "type": "object",
-        "description": "比赛与题目是多对多关系。QOJ 仅含真实提交链接涉及的比赛，hasSubmissions 必须为 true；洛谷与牛客不提供比赛。",
+        "description": "比赛与题目为多对多关系。所有平台仅导出有实际提交的比赛，hasSubmissions 恒为 true；共享题在其他比赛通过不能作为本场提交证据。牛客不提供比赛，洛谷已停用。",
         "required": [
           "id",
           "platform",
@@ -372,7 +370,8 @@
           },
           "hasSubmissions": {
             "type": "boolean",
-            "description": "实际在此比赛有提交，与共享题在其他比赛通过是不同概念。"
+            "description": "用户实际在此比赛有提交；当前导出恒为 true，无需 AC 或正式参赛。",
+            "const": true
           },
           "lastSubmissionEpoch": {
             "type": "integer",
@@ -425,7 +424,7 @@
       },
       "Dashboard": {
         "type": "object",
-        "description": "v2 五平台静态快照。累计解题为 accepted 的题目 ID 与 undatedSolved 的并集；只从 accepted 统计日期。无顶层预计算 summary，未知日期题数为 undatedSolved.length。",
+        "description": "当前启用四个平台的 v2 静态快照，排除洛谷。累计解题为 accepted 的题目 ID 与 undatedSolved 的并集；只从 accepted 统计日期。undatedSolved 当前为空，无顶层预计算 summary。",
         "required": [
           "schemaVersion",
           "handle",
@@ -461,12 +460,12 @@
           },
           "sources": {
             "type": "object",
-            "description": "当前部署包含五平台状态；较早 v2 快照可能没有 nowcoder。不能把 lastSuccess=null 当作空的成功历史。",
+            "description": "当前为 AtCoder / Codeforces / QOJ / 牛客。停用的洛谷不输出状态；较早 v2 快照应使用对应提交的契约。不能把 lastSuccess=null 当作空的成功历史。未知附加来源字段允许存在。",
             "required": [
               "atcoder",
               "codeforces",
               "qoj",
-              "luogu"
+              "nowcoder"
             ],
             "properties": {
               "atcoder": {
@@ -478,9 +477,7 @@
               "qoj": {
                 "$ref": "#/components/schemas/Source"
               },
-              "luogu": {
-                "$ref": "#/components/schemas/Source"
-              },
+              "luogu": false,
               "nowcoder": {
                 "$ref": "#/components/schemas/Source"
               }
@@ -499,7 +496,7 @@
             "items": {
               "$ref": "#/components/schemas/Contest"
             },
-            "description": "AtCoder / CF 常规比赛、已提交的 Gym 与 QOJ 比赛；洛谷与牛客没有比赛数据。"
+            "description": "用户实际有提交的 AtCoder / Codeforces（含 Gym）/ QOJ 比赛，hasSubmissions 恒为 true；牛客不提供比赛，洛谷已停用。内部全目录不属于此数组。"
           },
           "accepted": {
             "type": "array",
@@ -522,7 +519,7 @@
               "$ref": "#/components/schemas/ProblemId"
             },
             "uniqueItems": true,
-            "description": "已通过但 AC 时间未知的题目 ID，引用 problems；也是 attempted 子集，且与 accepted 的 problemId 集合不相交。当前来自洛谷；不能用采集日期生成 AC 事件。"
+            "description": "已通过但 AC 时间未知的题目 ID；当前洛谷停用，此数组为空，字段保留兼容性。非空时引用 problems，属于 attempted 子集且与 accepted 的题目集合不相交；不能用采集日期生成 AC 事件。"
           }
         },
         "additionalProperties": true
@@ -549,7 +546,7 @@
           }
         },
         "additionalProperties": true,
-        "description": "可选的来源页面摘要，当前用于洛谷。"
+        "description": "历史洛谷快照使用的可选页面摘要；洛谷当前停用，此字段保留兼容性。"
       }
     }
   }
