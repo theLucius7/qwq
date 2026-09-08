@@ -218,9 +218,6 @@ function bindEvents() {
   for (const name of ['kind', 'status']) $('#contest-' + name).addEventListener('change', event => { state[name] = event.target.value; state.page = 1; renderContests(); });
   $('#prev-page').addEventListener('click', () => { state.page--; renderContests(); });
   $('#next-page').addEventListener('click', () => { state.page++; renderContests(); });
-  document.querySelectorAll('.nav-link').forEach(anchor => anchor.addEventListener('click', () => {
-    document.querySelectorAll('.nav-link').forEach(item => item.classList.toggle('active', item === anchor));
-  }));
   const refreshDate = () => {
     const currentDay = dateKey(Date.now() / 1000);
     if (currentDay === today) return;
